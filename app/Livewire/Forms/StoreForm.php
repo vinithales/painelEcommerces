@@ -36,6 +36,7 @@ class StoreForm extends Form
 
     protected function rules(): array
     {
+        $existing = $this->store && $this->store->platform === $this->platform;
         return [
             'name' => ['required', 'string', 'max:255'],
             'platform' => ['required', Rule::in([Store::PLATFORM_WOOCOMMERCE, Store::PLATFORM_MAGENTO2])],
@@ -43,10 +44,10 @@ class StoreForm extends Form
             'panel_prefix' => ['nullable', 'string', 'max:255'],
             'payment_gateway' => ['nullable', 'string', 'max:255'],
             'shipping_gateway' => ['nullable', 'string', 'max:255'],
-            'consumer_key' => ['required', 'string', 'max:255'],
-            'consumer_secret' => ['required', 'string', 'max:255'],
-            'access_token' => ['nullable', 'required_if:platform,' . Store::PLATFORM_MAGENTO2, 'string', 'max:255'],
-            'access_token_secret' => ['nullable', 'required_if:platform,' . Store::PLATFORM_MAGENTO2, 'string', 'max:255'],
+            'consumer_key' => [$existing || ($this->username && $this->password) ? 'nullable' : 'required', 'string', 'max:255'],
+            'consumer_secret' => [$existing || ($this->username && $this->password) ? 'nullable' : 'required', 'string', 'max:255'],
+            'access_token' => [$existing || $this->platform !== Store::PLATFORM_MAGENTO2 || ($this->username && $this->password) ? 'nullable' : 'required', 'string', 'max:255'],
+            'access_token_secret' => [$existing || $this->platform !== Store::PLATFORM_MAGENTO2 || ($this->username && $this->password) ? 'nullable' : 'required', 'string', 'max:255'],
             'username' => ['nullable', 'string', 'max:255'],
             'password' => ['nullable', 'string', 'max:255'],
         ];
@@ -82,12 +83,9 @@ class StoreForm extends Form
             'shipping_gateway' => $store->shipping_gateway ?? '',
         ]);
 
-        $this->consumer_key = $integration?->consumer_key ?? '';
-        $this->consumer_secret = $integration?->consumer_secret ?? '';
-        $this->access_token = $store->usesAccessToken() ? ($integration?->access_token ?? '') : '';
-        $this->access_token_secret = $store->usesAccessToken() ? ($integration?->access_token_secret ?? '') : '';
-        $this->username = $store->isMagento2() ? ($integration?->username ?? '') : '';
-        $this->password = $store->isMagento2() ? ($integration?->password ?? '') : '';
+        foreach (['consumer_key', 'consumer_secret', 'access_token', 'access_token_secret', 'username', 'password'] as $field) {
+            $this->$field = '';
+        }
     }
 
     public function storeData(): array

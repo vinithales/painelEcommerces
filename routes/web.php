@@ -23,11 +23,22 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/stores');
 
+Route::get('/login', \App\Livewire\Login::class)->middleware('guest')->name('login');
+Route::post('/logout', function () {
+    \Illuminate\Support\Facades\Auth::logout();
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+    return redirect('/login');
+})->middleware('auth')->name('logout');
+
+Route::middleware(['auth', 'can:operate'])->group(function () {
+
 Route::get('/stores', IndexStores::class)->name('stores.index');
-Route::get('/stores/create', CreateStore::class)->name('stores.create');
-Route::get('/stores/{store}/edit', EditStore::class)->name('stores.edit');
+Route::get('/stores/create', CreateStore::class)->middleware('can:configure')->name('stores.create');
+Route::get('/stores/{store}/edit', EditStore::class)->middleware('can:configure')->name('stores.edit');
 Route::get('/stores/checks', StoreChecks::class)->name('stores.checks');
 Route::get('/stores/{store}/products', StoreProducts::class)->name('stores.products');
 Route::get('/stores/{store}/orders', StoreOrders::class)->name('stores.orders');
 Route::get('/stores/{store}/api-logs', StoreApiLogs::class)->name('stores.api-logs');
-Route::get('/stores/{store}/bulk-templates', BulkEditTemplates::class)->name('stores.bulk-templates');
+Route::get('/stores/{store}/bulk-templates', BulkEditTemplates::class)->middleware('can:manage')->name('stores.bulk-templates');
+});

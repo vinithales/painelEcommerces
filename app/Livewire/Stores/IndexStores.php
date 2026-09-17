@@ -31,6 +31,7 @@ class IndexStores extends Component
 
     public function delete(DeleteStoreAction $action, int $storeId): void
     {
+        \Illuminate\Support\Facades\Gate::authorize('configure');
         $store = Store::query()->findOrFail($storeId);
 
         $action->execute($store);

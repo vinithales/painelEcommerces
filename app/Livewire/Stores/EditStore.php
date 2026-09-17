@@ -25,6 +25,7 @@ class EditStore extends Component
 
     public function save(UpdateStoreAction $action)
     {
+        \Illuminate\Support\Facades\Gate::authorize('configure');
         $this->form->validate();
 
         $this->store = $action->execute(

@@ -55,6 +55,7 @@ class BulkEditTemplates extends Component
 
     public function save(): void
     {
+        \Illuminate\Support\Facades\Gate::authorize('manage');
         $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'resourceType' => ['required', 'in:product,order'],
@@ -83,7 +84,8 @@ class BulkEditTemplates extends Component
 
     public function delete(int $templateId): void
     {
-        BulkEditTemplate::find($templateId)?->delete();
+        \Illuminate\Support\Facades\Gate::authorize('manage');
+        BulkEditTemplate::where(fn ($q) => $q->whereNull('store_id')->orWhere('store_id', $this->store->id))->findOrFail($templateId)->delete();
         session()->flash('status', 'Template deleted.');
     }
 

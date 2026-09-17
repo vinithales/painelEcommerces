@@ -13,6 +13,7 @@ class CreateStoreAction
             $store = Store::create($storeData);
 
             $store->syncIntegration($integrationData);
+            \App\Models\AuditEvent::record($store->id, 'store', 'create', $storeData);
 
             return $store->fresh(['wooCommerceIntegration', 'magento2Integration']);
         });

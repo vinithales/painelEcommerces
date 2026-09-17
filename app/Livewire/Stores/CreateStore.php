@@ -16,6 +16,7 @@ class CreateStore extends Component
 
     public function save(CreateStoreAction $action)
     {
+        \Illuminate\Support\Facades\Gate::authorize('configure');
         $this->form->validate();
 
         $action->execute($this->form->storeData(), $this->form->integrationData());

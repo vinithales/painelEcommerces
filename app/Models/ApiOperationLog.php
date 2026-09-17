@@ -7,6 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ApiOperationLog extends Model
 {
+    protected static function booted(): void
+    {
+        static::saving(function ($log) {
+            foreach (['payload', 'response', 'error_message'] as $field) {
+                $log->$field = \App\Support\Redactor::clean($log->$field);
+            }
+        });
+    }
     protected $fillable = [
         'store_id',
         'operation_type',

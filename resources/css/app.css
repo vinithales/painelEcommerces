@@ -389,3 +389,34 @@ button, input, select, textarea { font: inherit; }
   .main-content { margin-left: 0; }
   .field-grid { grid-template-columns: 1fr; }
 }
+/* Operational palette and shared light/dark components. */
+:root { --primary:#147d64;--primary-hover:#10634f;--primary-soft:#d9eee7;--secondary:#9b6a20;--secondary-soft:#f5ead8;--secondary-text:#72501c;--bg:#f4f5f3;--surface-low:#f0f2ef;--surface-container:#e7ebe6;--surface-high:#e0e5de;--surface-highest:#d8dfd6;--text:#222a26;--text-muted:#66726a;--sidebar-bg:#202a25;--sidebar-text:#eef6f0;--sidebar-muted:#afbeb4;--sidebar-active-bg:#314038;--sidebar-width:220px;--surface-border:#dce2dc }
+[data-theme="dark"] { color-scheme:dark;--primary:#68c9a5;--primary-hover:#96ddc0;--primary-soft:#203e32;--bg:#161b18;--surface:#202723;--surface-low:#252e28;--surface-container:#303a32;--surface-high:#374039;--surface-highest:#414b43;--surface-border:#3d4840;--text:#e3eae4;--text-muted:#abb7ad;--success-soft:#203e32;--success-text:#8fd9b1;--danger-soft:#4b2929;--danger-text:#ffafaa;--warning-soft:#44391f;--warning-text:#f5cc7b;--secondary-soft:#44391f;--secondary-text:#f5cc7b }
+[data-sidebar="closed"] .sidebar {width:64px}
+[data-sidebar="closed"] .main-content {margin-left:64px}
+[data-sidebar="closed"] .sidebar__brand,[data-sidebar="closed"] .sidebar__link span,[data-sidebar="closed"] .sidebar__section-label {display:none}
+[data-sidebar="closed"] .sidebar__link {padding:14px 10px}
+.main-content {min-width:0}
+button {cursor:pointer}button:disabled {opacity:.55;cursor:wait}
+label {display:block;font-size:13px;color:var(--text-muted);margin-bottom:12px}
+input:not([type="checkbox"]),select,textarea {display:block;width:100%;padding:9px 11px;border:1px solid var(--surface-border);border-radius:6px;color:var(--text);background:var(--surface)}
+input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible {outline:2px solid var(--primary);outline-offset:2px}
+.toolbar {display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0}
+.toolbar label {margin:0}.toolbar input,.toolbar select {width:auto;max-width:220px}
+.field-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+.btn-primary {background:var(--primary);color:var(--surface)}.btn-secondary {background:var(--surface-low);color:var(--text);border:1px solid var(--surface-border)}
+.drawer-backdrop {position:fixed;inset:0;background:#0006;z-index:70}
+.drawer {position:fixed;right:0;top:0;bottom:0;width:min(780px,95vw);padding:24px;background:var(--surface);overflow:auto;z-index:71;box-shadow:-8px 0 35px #0003}
+.drawer header {display:flex;align-items:center;justify-content:space-between;position:sticky;top:-24px;background:var(--surface);padding:12px 0;z-index:1}
+.drawer section {border-top:1px solid var(--surface-border);padding:12px 0}
+pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:450px;overflow:auto;background:var(--surface-low);padding:16px;border-radius:6px}
+.muted {color:var(--text-muted)}.error {color:var(--danger-text);background:var(--danger-soft);padding:12px;border-radius:6px}
+.badge {display:inline-flex;padding:3px 9px;border-radius:20px;font-size:12px;background:var(--surface-container)}
+.badge-OK {background:var(--success-soft);color:var(--success-text)}
+.badge-WARNING {background:var(--warning-soft);color:var(--warning-text)}
+.badge-CRITICAL {background:var(--danger-soft);color:var(--danger-text)}
+.detail-list {display:grid;grid-template-columns:140px 1fr;gap:8px;margin:10px 0}.detail-list dt {color:var(--text-muted)}.detail-list dd {margin:0;overflow-wrap:anywhere}
+.product-image {width:45px;height:45px;object-fit:contain}.gallery {display:flex;gap:8px;flex-wrap:wrap}.gallery img {width:100px;height:100px;object-fit:contain}
+.empty {padding:40px;text-align:center;color:var(--text-muted)}.step {padding:8px 12px;border-radius:6px;background:var(--surface-low)}
+@media(max-width:768px) {.sidebar{display:flex;width:220px}.main-content{margin-left:0}.sidebar{box-shadow:5px 0 20px #0004}[data-sidebar="closed"] .sidebar{display:none}[data-sidebar="closed"] .main-content{margin-left:0}.page{padding:16px}.topbar{padding:0 12px}.topbar span{max-width:120px;overflow:hidden}}
+

@@ -167,6 +167,46 @@ npm run build
 php artisan serve
 ```
 
+## Docker
+
+Com Docker Desktop em execucao, suba a aplicacao, o MySQL, o worker da fila e o Mailpit:
+
+```bash
+docker compose up --build -d
+```
+
+A aplicacao estara em <http://localhost:8000> e a interface do Mailpit em
+<http://localhost:8025>. As migrations rodam automaticamente quando o container
+da aplicacao inicia.
+
+O Compose esta configurado para desenvolvimento com hot reload. Os arquivos do
+projeto sao montados nos containers da aplicacao e da fila:
+
+- alteracoes em PHP e Blade aparecem ao recarregar a pagina;
+- alteracoes em CSS e JavaScript sao atualizadas pelo Vite automaticamente;
+- o servidor Vite fica disponivel em <http://localhost:5173>;
+- `vendor`, `node_modules`, `storage` e o cache do Laravel permanecem em volumes
+  Docker e nao poluem o diretorio local.
+
+Depois da primeira inicializacao, nao e necessario reconstruir a imagem para
+alteracoes normais no codigo. Se `composer.json`, extensoes PHP ou o Dockerfile
+mudarem, execute novamente `docker compose up --build -d`.
+
+Comandos uteis:
+
+```bash
+docker compose logs -f app
+docker compose exec app php artisan migrate:status
+docker compose down
+```
+
+Os dados do MySQL e os arquivos de `storage` ficam em volumes Docker. Para
+remove-los tambem, use `docker compose down -v` (isso apaga os dados locais).
+
+As portas e senhas podem ser sobrescritas no `.env`, por exemplo com
+`APP_PORT`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `DB_PORT_FORWARD` e
+`MAILPIT_UI_PORT`. A porta do Vite pode ser alterada com `VITE_PORT`.
+
 Run the queue worker when using product/order edit features:
 
 ```bash

@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -10,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::hasColumn('store_integration_status', 'platform')) {
-            DB::statement('ALTER TABLE `store_integration_status` CHANGE COLUMN `platform` `check_key` VARCHAR(255) NOT NULL');
+            Schema::table('store_integration_status', fn (Blueprint $table) => $table->renameColumn('platform', 'check_key'));
         }
 
         Schema::table('store_integration_status', function (Blueprint $table) {
@@ -25,7 +24,7 @@ return new class extends Migration
         });
 
         if (Schema::hasColumn('store_integration_status', 'check_key')) {
-            DB::statement('ALTER TABLE `store_integration_status` CHANGE COLUMN `check_key` `platform` VARCHAR(255) NOT NULL');
+            Schema::table('store_integration_status', fn (Blueprint $table) => $table->renameColumn('check_key', 'platform'));
         }
     }
 };

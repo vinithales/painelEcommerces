@@ -24,12 +24,15 @@ class UpdateProductJob implements ShouldQueue
         private readonly Store $store,
         private readonly string $productId,
         private readonly array $attributes,
+        private ?int $actorId = null,
     ) {
+        $this->actorId ??= auth()->id();
     }
 
     public function handle(UpdateProductAction $action): void
     {
-        $action->execute($this->store, $this->productId, $this->attributes);
+        if ($this->actorId) \Illuminate\Support\Facades\Gate::forUser(\App\Models\User::findOrFail($this->actorId))->authorize('manage');
+        $action->execute($this->store, $this->productId, $this->attributes, actor: $this->actorId);
     }
 
     public function failed(Throwable $exception): void

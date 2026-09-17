@@ -13,6 +13,10 @@ use RuntimeException;
 class Magento2ApiAdapter implements PlatformApiAdapter
 {
     private Client $client;
+    private array $lastResponse = [];
+
+    public function telemetry(): array { return $this->lastResponse; }
+    public function storeInformation(): array { return $this->request('GET', 'store/storeConfigs')['body']; }
 
     private ?string $bearerToken = null;
 
@@ -44,7 +48,8 @@ class Magento2ApiAdapter implements PlatformApiAdapter
                 'base_uri' => rtrim($storeUrl, '/') . '/rest/V1/',
                 'handler' => $stack,
                 'timeout' => 30,
-                'verify' => false,
+                'verify' => true,
+                'allow_redirects' => false,
             ]);
         }
     }
@@ -56,7 +61,7 @@ class Magento2ApiAdapter implements PlatformApiAdapter
 
     private function fetchBearerToken(): string
     {
-        $tokenClient = new Client(['timeout' => 30, 'verify' => false]);
+        $tokenClient = new Client(['timeout' => 30, 'verify' => true, 'allow_redirects' => false]);
 
         try {
             $response = $tokenClient->post(
@@ -129,6 +134,7 @@ class Magento2ApiAdapter implements PlatformApiAdapter
 
     public function getProduct(string $id): array
     {
+        $id = rawurlencode($id);
         $response = $this->request('GET', "products/{$id}");
         $raw = $response['body'];
 
@@ -140,6 +146,8 @@ class Magento2ApiAdapter implements PlatformApiAdapter
 
     public function updateProduct(string $id, array $attributes): array
     {
+        $id = rawurlencode($id);
+        $attributes = \App\Services\PlatformApi\ProductFields::payload('magento2', $attributes);
         $response = $this->request('PUT', "products/{$id}", ['json' => ['product' => $attributes]]);
         $raw = $response['body'];
 
@@ -167,6 +175,7 @@ class Magento2ApiAdapter implements PlatformApiAdapter
 
     public function getOrder(string $id): array
     {
+        $id = rawurlencode($id);
         $response = $this->request('GET', "orders/{$id}");
         $raw = $response['body'];
 
@@ -178,13 +187,16 @@ class Magento2ApiAdapter implements PlatformApiAdapter
 
     public function updateOrder(string $id, array $attributes): array
     {
-        $response = $this->request('PUT', "orders/{$id}", ['json' => ['entity' => $attributes]]);
-        $raw = $response['body'];
-
-        return [
-            'data' => $this->normalizeOrder($raw),
-            'raw' => $raw,
-        ];
+        if (isset($attributes['status']) || isset($attributes['state'])) throw new RuntimeException('Magento exige uma operação explícita; state/status não são graváveis.');
+        $current = $this->getOrder($id);
+        $operation = \App\Services\PlatformApi\OrderTransitions::magentoOperation($current['data'], $attributes);
+        $response = $this->request('POST', 'orders/'.rawurlencode($id).'/'.$operation);
+        if ($response['body'] !== true) throw new RuntimeException('Magento recusou a operação.');
+        $result = $this->getOrder($id);
+        $state = $result['data']['state'];
+        $valid = match ($operation) { 'cancel' => $state === 'canceled', 'hold' => $state === 'holded', 'unhold' => !in_array($state, ['holded', 'canceled', 'closed'], true) };
+        if (!$valid) throw new RuntimeException('Magento não confirmou o estado final.');
+        return $result;
     }
 
     private function normalizeProduct(array $raw): array
@@ -203,10 +215,10 @@ class Magento2ApiAdapter implements PlatformApiAdapter
             'name' => $raw['name'] ?? '',
             'price' => $raw['price'] ?? $price,
             'stock_quantity' => $raw['extension_attributes']['stock_item']['qty'] ?? null,
-            'status' => $raw['status'] === 1 ? 'enabled' : ($raw['status'] === 2 ? 'disabled' : null),
+            'status' => (int) ($raw['status'] ?? 0) === 1 ? 'enabled' : ((int) ($raw['status'] ?? 0) === 2 ? 'disabled' : null),
             'created_at' => $raw['created_at'] ?? null,
             'raw' => $raw,
-        ];
+        ] + \App\Services\PlatformApi\ResourceDetails::product($raw, 'magento2', $this->storeUrl);
     }
 
     private function normalizeOrder(array $raw): array
@@ -219,7 +231,7 @@ class Magento2ApiAdapter implements PlatformApiAdapter
             'total' => $raw['grand_total'] ?? null,
             'created_at' => $raw['created_at'] ?? null,
             'raw' => $raw,
-        ];
+        ] + \App\Services\PlatformApi\ResourceDetails::order($raw, 'magento2');
     }
 
     private function buildSearchCriteria(array $filters, int $page, int $perPage, string $context): array
@@ -230,6 +242,18 @@ class Magento2ApiAdapter implements PlatformApiAdapter
         ];
 
         $filterIndex = 0;
+        foreach (['name' => 'name', 'number' => 'increment_id', 'id' => 'entity_id'] as $key => $field) {
+            if (!empty($filters[$key])) {
+                $query["searchCriteria[filterGroups][{$filterIndex}][filters][0][field]"] = $field;
+                $query["searchCriteria[filterGroups][{$filterIndex}][filters][0][value]"] = $key === 'name' ? '%'.$filters[$key].'%' : $filters[$key];
+                $query["searchCriteria[filterGroups][{$filterIndex}][filters][0][conditionType]"] = $key === 'name' ? 'like' : 'eq';
+                $filterIndex++;
+            }
+        }
+        if (!empty($filters['sort'])) {
+            $query['searchCriteria[sortOrders][0][field]'] = $filters['sort'];
+            $query['searchCriteria[sortOrders][0][direction]'] = strtoupper($filters['direction'] ?? 'asc');
+        }
 
         if ($context === 'products') {
             if (! empty($filters['sku'])) {
@@ -290,9 +314,11 @@ class Magento2ApiAdapter implements PlatformApiAdapter
 
     private function request(string $method, string $uri, array $options = []): array
     {
+        $started = microtime(true);
         try {
             $response = $this->client->request($method, $uri, $options);
             $body = json_decode((string) $response->getBody(), true) ?? [];
+            $this->lastResponse = ['http_status' => $response->getStatusCode(), 'duration_ms' => (int) ((microtime(true) - $started) * 1000), 'body' => \App\Support\Redactor::clean($body)];
 
             return [
                 'body' => $body,
@@ -300,6 +326,7 @@ class Magento2ApiAdapter implements PlatformApiAdapter
                 'status' => $response->getStatusCode(),
             ];
         } catch (GuzzleException $e) {
+            $this->lastResponse = ['http_status' => $e instanceof \GuzzleHttp\Exception\RequestException ? $e->getResponse()?->getStatusCode() : null, 'duration_ms' => (int) ((microtime(true) - $started) * 1000), 'error' => \App\Support\Redactor::clean($e->getMessage())];
             throw new RuntimeException("Magento 2 API error: {$e->getMessage()}", 0, $e);
         }
     }

@@ -40,7 +40,8 @@ class BulkEditTemplates extends Component
 
     public function openEdit(int $templateId): void
     {
-        $template = BulkEditTemplate::find($templateId);
+        \Illuminate\Support\Facades\Gate::authorize('manage');
+        $template = BulkEditTemplate::where(fn ($q) => $q->whereNull('store_id')->orWhere('store_id', $this->store->id))->findOrFail($templateId);
         if (! $template) {
             return;
         }
@@ -63,6 +64,12 @@ class BulkEditTemplates extends Component
         ]);
 
         $attributeChanges = json_decode($this->rawAttributes, true);
+        if ($this->resourceType === 'product') {
+            \App\Services\PlatformApi\ProductFields::validate($this->store, $attributeChanges);
+        } else {
+            validator(['attributes' => $attributeChanges], ['attributes' => 'required|array', 'attributes.status' => 'sometimes|in:pending,processing,on-hold,completed,cancelled', 'attributes.operation' => 'sometimes|in:cancel,hold,unhold'])->validate();
+            abort_unless(count($attributeChanges) === 1 && count(array_intersect(array_keys($attributeChanges), ['status', 'operation'])) === 1, 422);
+        }
 
         $data = [
             'name' => $this->name,
@@ -72,7 +79,7 @@ class BulkEditTemplates extends Component
         ];
 
         if ($this->editingId) {
-            BulkEditTemplate::where('id', $this->editingId)->update($data);
+            BulkEditTemplate::where(fn ($q) => $q->whereNull('store_id')->orWhere('store_id', $this->store->id))->findOrFail($this->editingId)->update($data);
         } else {
             BulkEditTemplate::create($data);
         }

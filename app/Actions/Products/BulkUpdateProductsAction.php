@@ -14,6 +14,8 @@ class BulkUpdateProductsAction
 
     public function execute(Store $store, array $productIds, array $attributes, bool $dryRun = false): array
     {
+        \App\Services\PlatformApi\ProductFields::validate($store, $attributes);
+        validator(['ids' => $productIds], ['ids' => 'required|array|max:100', 'ids.*' => 'required|string|max:255'])->validate();
         if ($dryRun) {
             $previews = [];
             foreach ($productIds as $productId) {

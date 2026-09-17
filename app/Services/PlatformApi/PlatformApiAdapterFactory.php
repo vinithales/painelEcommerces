@@ -10,11 +10,21 @@ use InvalidArgumentException;
 
 class PlatformApiAdapterFactory
 {
+    private array $adapters = [];
+
     public function make(Store $store): PlatformApiAdapter
     {
         $credentials = $store->integrationCredentials();
+        if ($store->isWooCommerce() && (empty($credentials['consumer_key']) || empty($credentials['consumer_secret']))) {
+            throw new \RuntimeException('Credenciais WooCommerce não configuradas.');
+        }
+        if ($store->isMagento2() && ! (isset($credentials['username'], $credentials['password']) || isset($credentials['consumer_key'], $credentials['consumer_secret'], $credentials['access_token'], $credentials['access_token_secret']))) {
+            throw new \RuntimeException('Credenciais Magento não configuradas.');
+        }
 
-        return match ($store->platform) {
+        $key = hash('sha256', $store->platform.'|'.$store->store_url.'|'.serialize($credentials));
+
+        return $this->adapters[$key] ??= match ($store->platform) {
             Store::PLATFORM_WOOCOMMERCE => new WooCommerceApiAdapter(
                 storeUrl: $store->store_url,
                 consumerKey: $credentials['consumer_key'] ?? '',

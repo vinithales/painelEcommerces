@@ -9,6 +9,21 @@ use InvalidArgumentException;
 
 class Store extends Model
 {
+    public function checks()
+    {
+        return $this->hasMany(StoreCheck::class);
+    }
+
+    public function serverConnection()
+    {
+        return $this->hasOne(ServerConnection::class);
+    }
+
+    public function audits()
+    {
+        return $this->hasMany(AuditEvent::class);
+    }
+
     use HasFactory;
 
     public const PLATFORM_WOOCOMMERCE = 'woocommerce';

@@ -5,11 +5,13 @@ namespace App\Jobs;
 use App\Actions\Products\UpdateProductAction;
 use App\Models\ApiOperationLog;
 use App\Models\Store;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Gate;
 use Throwable;
 
 class UpdateProductJob implements ShouldQueue
@@ -24,12 +26,17 @@ class UpdateProductJob implements ShouldQueue
         private readonly Store $store,
         private readonly string $productId,
         private readonly array $attributes,
+        private ?int $actorId = null,
     ) {
+        $this->actorId ??= auth()->id();
     }
 
     public function handle(UpdateProductAction $action): void
     {
-        $action->execute($this->store, $this->productId, $this->attributes);
+        if ($this->actorId) {
+            Gate::forUser(User::findOrFail($this->actorId))->authorize('manage');
+        }
+        $action->execute($this->store, $this->productId, $this->attributes, actor: $this->actorId);
     }
 
     public function failed(Throwable $exception): void

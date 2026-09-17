@@ -2,17 +2,11 @@
 
 namespace App\Services\PlatformApi;
 
-use App\Models\ApiOperationLog;
 use App\Models\Store;
-use RuntimeException;
 
 class ProductsApiService
 {
-    public function __construct(
-        private readonly PlatformApiAdapterFactory $factory,
-        private readonly ProductsCacheService $cache,
-    ) {
-    }
+    public function __construct(private readonly PlatformApiAdapterFactory $factory, private readonly ProductsCacheService $cache) {}
 
     public function getAllCached(Store $store): array
     {
@@ -41,85 +35,31 @@ class ProductsApiService
 
     public function list(Store $store, array $filters, int $page, int $perPage): array
     {
-        $adapter = $this->factory->make($store);
-        $result = $adapter->listProducts($filters, $page, $perPage);
+        return ApiAudit::call($store, 'list', 'product', null, $filters, fn () => $this->factory->make($store)->listProducts($filters, max(1, $page), min(100, max(1, $perPage))));
+    }
 
-        ApiOperationLog::create([
-            'store_id' => $store->id,
-            'operation_type' => 'list',
-            'resource_type' => 'product',
-            'resource_id' => null,
-            'payload' => $filters,
-            'response' => ['total' => $result['total']],
-            'status' => 'ok',
-        ]);
+    public function get(Store $store, string $id): array
+    {
+        return ApiAudit::call($store, 'get', 'product', $id, [], fn () => $this->factory->make($store)->getProduct($id));
+    }
+
+    public function update(Store $store, string $id, array $attributes, bool $dryRun = false): array
+    {
+        $attributes = ProductFields::validate($store, $attributes);
+        if ($dryRun) {
+            $current = ProductFields::values($store, $this->get($store, $id)['data']);
+            $diff = [];
+            foreach ($attributes as $k => $v) {
+                if (($current[$k] ?? null) != $v) {
+                    $diff[$k] = ['from' => $current[$k] ?? null, 'to' => $v];
+                }
+            }
+
+            return ['dry_run' => true, 'product_id' => $id, 'current' => $current, 'proposed_changes' => $attributes, 'diff' => $diff];
+        }
+        $result = ApiAudit::call($store, 'update', 'product', $id, $attributes, fn () => $this->factory->make($store)->updateProduct($id, $attributes));
+        $this->invalidateCache($store);
 
         return $result;
-    }
-
-    public function get(Store $store, string $productId): array
-    {
-        $adapter = $this->factory->make($store);
-
-        return $adapter->getProduct($productId);
-    }
-
-    public function update(Store $store, string $productId, array $attributes, bool $dryRun = false): array
-    {
-        if ($dryRun) {
-            $current = $this->get($store, $productId);
-
-            return [
-                'dry_run' => true,
-                'product_id' => $productId,
-                'current' => $current['data'],
-                'proposed_changes' => $attributes,
-                'diff' => $this->diff($current['data'], $attributes),
-            ];
-        }
-
-        $adapter = $this->factory->make($store);
-
-        try {
-            $result = $adapter->updateProduct($productId, $attributes);
-
-            ApiOperationLog::create([
-                'store_id' => $store->id,
-                'operation_type' => 'update',
-                'resource_type' => 'product',
-                'resource_id' => $productId,
-                'payload' => $attributes,
-                'response' => $result['data'],
-                'status' => 'ok',
-            ]);
-
-            return $result;
-        } catch (RuntimeException $e) {
-            ApiOperationLog::create([
-                'store_id' => $store->id,
-                'operation_type' => 'update',
-                'resource_type' => 'product',
-                'resource_id' => $productId,
-                'payload' => $attributes,
-                'response' => null,
-                'status' => 'failed',
-                'error_message' => $e->getMessage(),
-            ]);
-
-            throw $e;
-        }
-    }
-
-    private function diff(array $current, array $proposed): array
-    {
-        $diff = [];
-        foreach ($proposed as $key => $newValue) {
-            $diff[$key] = [
-                'from' => $current[$key] ?? null,
-                'to' => $newValue,
-            ];
-        }
-
-        return $diff;
     }
 }

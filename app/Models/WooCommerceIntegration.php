@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WooCommerceIntegration extends Model
 {
+    protected $hidden = ['consumer_key', 'consumer_secret'];
+
     use HasFactory;
 
     protected $table = 'woocommerce_integrations';

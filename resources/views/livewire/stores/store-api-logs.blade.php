@@ -2,43 +2,43 @@
     <section class="hero-grid">
         <article class="hero-card hero-card--wide">
             <span class="eyebrow">{{ $store->name }}</span>
-            <h1>API Logs</h1>
-            <p>Full history of list and update operations against the platform API.</p>
+            <h1>Logs de API</h1>
+            <p>Histórico completo das operações de consulta e atualização na API da plataforma.</p>
         </article>
     </section>
 
     <section class="panel stack-lg">
         <div class="toolbar">
             <label class="field field--filter">
-                <span>Operation</span>
+                <span>Operação</span>
                 <select wire:model.live="operationType">
-                    <option value="all">All</option>
-                    <option value="list">List</option>
-                    <option value="update">Update</option>
+                    <option value="all">Todas</option>
+                    <option value="list">Consulta</option>
+                    <option value="update">Atualização</option>
                 </select>
             </label>
             <label class="field field--filter">
-                <span>Resource</span>
+                <span>Recurso</span>
                 <select wire:model.live="resourceType">
-                    <option value="all">All</option>
-                    <option value="product">Product</option>
-                    <option value="order">Order</option>
+                    <option value="all">Todos</option>
+                    <option value="product">Produto</option>
+                    <option value="order">Pedido</option>
                 </select>
             </label>
             <label class="field field--filter">
                 <span>Status</span>
                 <select wire:model.live="status">
-                    <option value="all">All</option>
+                    <option value="all">Todos</option>
                     <option value="ok">OK</option>
                     <option value="failed">Failed</option>
                 </select>
             </label>
             <label class="field">
-                <span>From</span>
+                <span>De</span>
                 <input type="date" wire:model.live="dateFrom" />
             </label>
             <label class="field">
-                <span>To</span>
+                <span>Até</span>
                 <input type="date" wire:model.live="dateTo" />
             </label>
         </div>
@@ -47,13 +47,13 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>When</th>
-                        <th>Operation</th>
-                        <th>Resource</th>
-                        <th>Resource ID</th>
+                        <th>Quando</th>
+                        <th>Operação</th>
+                        <th>Recurso</th>
+                        <th>ID do recurso</th>
                         <th>Status</th>
                         <th>Error</th>
-                        <th class="table-actions">Detail</th>
+                        <th class="table-actions">Detalhes</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -68,14 +68,14 @@
                                     {{ $log->status }}
                                 </span>
                             </td>
-                            <td class="table-subtitle">{{ Str::limit($log->error_message ?? '—', 60) }}</td>
+                            <td class="table-subtitle">{{ substr($log->error_message ?? '—', 0, 60) }}</td>
                             <td class="table-actions">
                                 <button
                                     type="button"
                                     class="button button--small button--ghost"
                                     wire:click="toggleExpand({{ $log->id }})"
                                 >
-                                    {{ in_array($log->id, $expandedIds) ? 'Hide' : 'Show' }}
+                                    {{ in_array($log->id, $expandedIds) ? 'Ocultar' : 'Exibir' }}
                                 </button>
                             </td>
                         </tr>
@@ -85,19 +85,19 @@
                                     <div class="stack-lg">
                                         @if ($log->payload)
                                             <div>
-                                                <strong>Payload sent:</strong>
+                                                <strong>Dados enviados:</strong>
                                                 <pre style="overflow: auto; max-height: 200px; font-size: 0.8rem;">{{ json_encode($log->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
                                             </div>
                                         @endif
                                         @if ($log->response)
                                             <div>
-                                                <strong>API response:</strong>
+                                                <strong>Resposta da API:</strong>
                                                 <pre style="overflow: auto; max-height: 200px; font-size: 0.8rem;">{{ json_encode($log->response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
                                             </div>
                                         @endif
                                         @if ($log->error_message)
                                             <div>
-                                                <strong>Error:</strong>
+                                                <strong>Erro:</strong>
                                                 <p class="table-subtitle">{{ $log->error_message }}</p>
                                             </div>
                                         @endif
@@ -107,7 +107,7 @@
                         @endif
                     @empty
                         <tr>
-                            <td colspan="7" class="table-subtitle" style="text-align: center;">No log entries found.</td>
+                            <td colspan="7" class="table-subtitle" style="text-align: center;">Nenhum registro de log encontrado.</td>
                         </tr>
                     @endforelse
                 </tbody>

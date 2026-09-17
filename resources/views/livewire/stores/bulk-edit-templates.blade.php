@@ -2,18 +2,18 @@
     <section class="hero-grid">
         <article class="hero-card hero-card--wide">
             <span class="eyebrow">{{ $store->name }}</span>
-            <h1>Bulk Edit Templates</h1>
-            <p>Define reusable sets of attribute changes to apply to multiple products or orders at once.</p>
+            <h1>Modelos de edição em lote</h1>
+            <p>Defina conjuntos reutilizáveis de alterações para aplicar a vários produtos ou pedidos de uma vez.</p>
 
             <div class="hero-card__actions">
-                <button type="button" class="button" wire:click="openCreate">New template</button>
+                <button type="button" class="button" wire:click="openCreate">Novo modelo</button>
             </div>
         </article>
     </section>
 
     @if ($showForm)
         <section class="panel stack-lg">
-            <h2 class="section-title">{{ $editingId ? 'Edit template' : 'New template' }}</h2>
+            <h2 class="section-title">{{ $editingId ? 'Editar modelo' : 'Novo modelo' }}</h2>
 
             @if ($errors->any())
                 <div class="flash flash--error">
@@ -26,12 +26,12 @@
             @endif
 
             <label class="field">
-                <span>Name</span>
-                <input type="text" wire:model="name" placeholder="e.g. Set all to draft" />
+                <span>Nome</span>
+                <input type="text" wire:model="name" placeholder="ex.: colocar todos como rascunho" />
             </label>
 
             <label class="field field--filter">
-                <span>Resource type</span>
+                <span>Tipo de recurso</span>
                 <select wire:model="resourceType">
                     <option value="product">Product</option>
                     <option value="order">Order</option>
@@ -40,26 +40,26 @@
 
             <label class="field--inline">
                 <input type="checkbox" wire:model="isGlobal" id="is-global" />
-                <span>Global (available to all stores)</span>
+                <span>Global (disponível para todas as lojas)</span>
             </label>
 
             <label class="field">
-                <span>Attribute changes (JSON)</span>
+                <span>Alterações de atributos (JSON)</span>
                 <textarea
                     wire:model="rawAttributes"
                     rows="8"
                     placeholder='{"status": "draft", "price": "29.90"}'
                     style="font-family: monospace; font-size: 0.85rem;"
                 ></textarea>
-                <small class="hint">JSON object where keys are API field names and values are the new values to apply.</small>
+                <small class="hint">Objeto JSON em que as chaves são campos da API e os valores são os novos valores a aplicar.</small>
             </label>
 
             <div class="toolbar">
                 <button type="button" class="button" wire:click="save">
-                    <span wire:loading.remove wire:target="save">Save template</span>
-                    <span wire:loading wire:target="save">Saving…</span>
+                    <span wire:loading.remove wire:target="save">Salvar modelo</span>
+                    <span wire:loading wire:target="save">Salvando...</span>
                 </button>
-                <button type="button" class="button button--ghost" wire:click="$set('showForm', false)">Cancel</button>
+                <button type="button" class="button button--ghost" wire:click="$set('showForm', false)">Cancelar</button>
             </div>
         </section>
     @endif
@@ -69,11 +69,11 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Resource</th>
-                        <th>Scope</th>
-                        <th>Attributes</th>
-                        <th class="table-actions">Actions</th>
+                        <th>Nome</th>
+                        <th>Recurso</th>
+                        <th>Escopo</th>
+                        <th>Atributos</th>
+                        <th class="table-actions">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -87,11 +87,11 @@
                                 @if ($template->isGlobal())
                                     <span class="inline-tag">Global</span>
                                 @else
-                                    <span class="inline-tag">This store</span>
+                                    <span class="inline-tag">Esta loja</span>
                                 @endif
                             </td>
                             <td>
-                                <code style="font-size: 0.8rem;">{{ Str::limit(json_encode($template->attribute_changes), 60) }}</code>
+                                <code style="font-size: 0.8rem;">{{ substr(json_encode($template->attribute_changes), 0, 60) }}</code>
                             </td>
                             <td class="table-actions">
                                 <button
@@ -99,21 +99,21 @@
                                     class="button button--small button--ghost"
                                     wire:click="openEdit({{ $template->id }})"
                                 >
-                                    Edit
+                                    Editar
                                 </button>
                                 <button
                                     type="button"
                                     class="button button--small button--danger"
                                     wire:click="delete({{ $template->id }})"
-                                    wire:confirm="Delete template '{{ $template->name }}'?"
+                                    wire:confirm="Excluir o modelo '{{ $template->name }}'?"
                                 >
-                                    Delete
+                                    Excluir
                                 </button>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="table-subtitle" style="text-align: center;">No templates yet. Create one to speed up bulk edits.</td>
+                            <td colspan="5" class="table-subtitle" style="text-align: center;">Nenhum modelo encontrado. Crie um para agilizar as edições em lote.</td>
                         </tr>
                     @endforelse
                 </tbody>

@@ -2,7 +2,7 @@
     <section class="hero-grid">
         <article class="hero-card hero-card--wide">
             <span class="eyebrow">{{ $store->name }}</span>
-            <h1>Orders</h1>
+            <h1>Pedidos</h1>
             <p>
                 <span class="platform-pill platform-pill--{{ $store->platform }}">
                     {{ $store->platform === 'woocommerce' ? 'WooCommerce' : 'Magento 2' }}
@@ -13,7 +13,7 @@
     </section>
 
     @if ($errors->has('api'))
-        <div class="flash flash--error">API error: {{ $errors->first('api') }}</div>
+        <div class="flash flash--error">Erro de API: {{ $errors->first('api') }}</div>
     @endif
 
     <section class="panel stack-lg">
@@ -21,29 +21,29 @@
             <label class="field field--filter">
                 <span>Status</span>
                 <select wire:model="filters.status">
-                    <option value="">All</option>
-                    <option value="pending">Pending</option>
-                    <option value="processing">Processing</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                    <option value="refunded">Refunded</option>
-                    <option value="on-hold">On hold</option>
+                    <option value="">Todos</option>
+                    <option value="pending">Pendente</option>
+                    <option value="processing">Processando</option>
+                    <option value="completed">Concluído</option>
+                    <option value="cancelled">Cancelado</option>
+                    <option value="refunded">Reembolsado</option>
+                    <option value="on-hold">Em espera</option>
                 </select>
             </label>
             <label class="field field--search">
-                <span>Customer email</span>
+                <span>E-mail do cliente</span>
                 <input type="text" wire:model="filters.customer_email" placeholder="customer@example.com" />
             </label>
             <label class="field">
-                <span>From</span>
+                <span>De</span>
                 <input type="date" wire:model="filters.date_from" />
             </label>
             <label class="field">
-                <span>To</span>
+                <span>Até</span>
                 <input type="date" wire:model="filters.date_to" />
             </label>
             <label class="field">
-                <span>Per page</span>
+                <span>Por página</span>
                 <select wire:model="perPage">
                     <option value="25">25</option>
                     <option value="50">50</option>
@@ -51,15 +51,15 @@
                 </select>
             </label>
             <button type="button" class="button" wire:click="loadOrders">
-                <span wire:loading.remove wire:target="loadOrders">Load orders</span>
-                <span wire:loading wire:target="loadOrders">Loading…</span>
+                <span wire:loading.remove wire:target="loadOrders">Carregar pedidos</span>
+                <span wire:loading wire:target="loadOrders">Carregando...</span>
             </button>
         </div>
 
         <div class="toolbar">
-            <button type="button" id="btn-bulk-order-apply" class="button button--ghost">Bulk apply to selected</button>
+            <button type="button" id="btn-bulk-order-apply" class="button button--ghost">Aplicar aos selecionados</button>
             <button type="button" id="btn-save-order-changes" class="button">
-                Save changes
+                Salvar alterações
                 @if (count($pendingChanges) > 0)
                     <span class="badge">{{ count($pendingChanges) }}</span>
                 @endif
@@ -74,18 +74,18 @@
         ></div>
 
         <div class="table-subtitle">
-            Total: {{ $total }} orders &mdash; page {{ $page }}
+            Total: {{ $total }} pedidos &mdash; página {{ $page }}
         </div>
 
         <div class="toolbar">
             @if ($page > 1)
                 <button type="button" class="button button--ghost" wire:click="$set('page', {{ $page - 1 }})">
-                    &laquo; Previous
+                    &laquo; Anterior
                 </button>
             @endif
             @if ($total > $page * $perPage)
                 <button type="button" class="button button--ghost" wire:click="$set('page', {{ $page + 1 }})">
-                    Next &raquo;
+                    Próxima &raquo;
                 </button>
             @endif
         </div>
@@ -93,7 +93,7 @@
 
     @if (!empty($executionFeedback))
         <section class="panel stack-lg">
-            <h2 class="section-title">Execution results</h2>
+            <h2 class="section-title">Resultados da execução</h2>
             <div class="table-wrap">
                 <table class="data-table">
                     <thead>
@@ -124,22 +124,22 @@
     @if ($showBulkModal)
         <div class="modal-overlay">
             <div class="modal">
-                <h2>Bulk apply to {{ count($bulkSelectedIds) }} order(s)</h2>
+                <h2>Aplicar em lote a {{ count($bulkSelectedIds) }} pedido(s)</h2>
 
                 <label class="field">
-                    <span>New status</span>
+                    <span>Novo status</span>
                     <select wire:model="bulkAttributes.status">
-                        <option value="">— Select —</option>
-                        <option value="processing">Processing</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                        <option value="on-hold">On hold</option>
+                        <option value="">— Selecione —</option>
+                        <option value="processing">Processando</option>
+                        <option value="completed">Concluído</option>
+                        <option value="cancelled">Cancelado</option>
+                        <option value="on-hold">Em espera</option>
                     </select>
                 </label>
 
                 <div class="toolbar" style="margin-top: 1rem;">
-                    <button type="button" class="button" wire:click="applyBulk">Apply bulk</button>
-                    <button type="button" class="button button--ghost" wire:click="$set('showBulkModal', false)">Cancel</button>
+                    <button type="button" class="button" wire:click="applyBulk">Aplicar em lote</button>
+                    <button type="button" class="button button--ghost" wire:click="$set('showBulkModal', false)">Cancelar</button>
                 </div>
             </div>
         </div>

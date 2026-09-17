@@ -13,6 +13,17 @@ return new class extends Migration
             Schema::rename('clients', 'stores');
         }
 
+        if (DB::getDriverName() === 'sqlite') {
+            // SQLite updates existing foreign keys and unique indexes on rename.
+            foreach (['woocommerce_integrations', 'magento2_integrations'] as $table) {
+                if (Schema::hasColumn($table, 'client_id')) {
+                    Schema::table($table, fn (Blueprint $blueprint) => $blueprint->renameColumn('client_id', 'store_id'));
+                }
+            }
+
+            return;
+        }
+
         $this->dropForeignKeyIfExists('woocommerce_integrations', 'client_id');
         $this->dropIndexIfExists('woocommerce_integrations', 'client_id');
         $this->dropForeignKeyIfExists('magento2_integrations', 'client_id');
@@ -44,6 +55,18 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            foreach (['woocommerce_integrations', 'magento2_integrations'] as $table) {
+                if (Schema::hasColumn($table, 'store_id')) {
+                    Schema::table($table, fn (Blueprint $blueprint) => $blueprint->renameColumn('store_id', 'client_id'));
+                }
+            }
+            if (Schema::hasTable('stores') && ! Schema::hasTable('clients')) {
+                Schema::rename('stores', 'clients');
+            }
+
+            return;
+        }
         $this->dropForeignKeyIfExists('woocommerce_integrations', 'store_id');
         $this->dropIndexIfExists('woocommerce_integrations', 'store_id');
         $this->dropForeignKeyIfExists('magento2_integrations', 'store_id');

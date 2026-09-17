@@ -2,72 +2,28 @@
 
 namespace App\Services\PlatformApi;
 
-use App\Models\ApiOperationLog;
+use App\Models\AuditEvent;
 use App\Models\Store;
-use RuntimeException;
 
 class OrdersApiService
 {
-    public function __construct(private readonly PlatformApiAdapterFactory $factory)
-    {
-    }
+    public function __construct(private readonly PlatformApiAdapterFactory $factory) {}
 
     public function list(Store $store, array $filters, int $page, int $perPage): array
     {
-        $adapter = $this->factory->make($store);
-        $result = $adapter->listOrders($filters, $page, $perPage);
+        return ApiAudit::call($store, 'list', 'order', null, $filters, fn () => $this->factory->make($store)->listOrders($filters, max(1, $page), min(100, max(1, $perPage))));
+    }
 
-        ApiOperationLog::create([
-            'store_id' => $store->id,
-            'operation_type' => 'list',
-            'resource_type' => 'order',
-            'resource_id' => null,
-            'payload' => $filters,
-            'response' => ['total' => $result['total']],
-            'status' => 'ok',
-        ]);
+    public function get(Store $store, string $id): array
+    {
+        return ApiAudit::call($store, 'get', 'order', $id, [], fn () => $this->factory->make($store)->getOrder($id));
+    }
+
+    public function update(Store $store, string $id, array $attributes): array
+    {
+        $result = ApiAudit::call($store, 'update', 'order', $id, $attributes, fn () => $this->factory->make($store)->updateOrder($id, $attributes));
+        AuditEvent::record($store->id, 'order', 'update', ['id' => $id, 'changes' => $attributes]);
 
         return $result;
-    }
-
-    public function get(Store $store, string $orderId): array
-    {
-        $adapter = $this->factory->make($store);
-
-        return $adapter->getOrder($orderId);
-    }
-
-    public function update(Store $store, string $orderId, array $attributes): array
-    {
-        $adapter = $this->factory->make($store);
-
-        try {
-            $result = $adapter->updateOrder($orderId, $attributes);
-
-            ApiOperationLog::create([
-                'store_id' => $store->id,
-                'operation_type' => 'update',
-                'resource_type' => 'order',
-                'resource_id' => $orderId,
-                'payload' => $attributes,
-                'response' => $result['data'],
-                'status' => 'ok',
-            ]);
-
-            return $result;
-        } catch (RuntimeException $e) {
-            ApiOperationLog::create([
-                'store_id' => $store->id,
-                'operation_type' => 'update',
-                'resource_type' => 'order',
-                'resource_id' => $orderId,
-                'payload' => $attributes,
-                'response' => null,
-                'status' => 'failed',
-                'error_message' => $e->getMessage(),
-            ]);
-
-            throw $e;
-        }
     }
 }

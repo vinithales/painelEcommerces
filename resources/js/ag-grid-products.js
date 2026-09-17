@@ -6,10 +6,10 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
 function statusRenderer(params) {
     const map = {
-        publish:  { label: 'Published', cls: 'status-badge--publish' },
-        draft:    { label: 'Draft',     cls: 'status-badge--draft' },
-        enabled:  { label: 'Enabled',   cls: 'status-badge--enabled' },
-        disabled: { label: 'Disabled',  cls: 'status-badge--disabled' },
+        publish:  { label: 'Publicado', cls: 'status-badge--publish' },
+        draft:    { label: 'Rascunho', cls: 'status-badge--draft' },
+        enabled:  { label: 'Habilitado', cls: 'status-badge--enabled' },
+        disabled: { label: 'Desabilitado', cls: 'status-badge--disabled' },
     };
     const v = params.value ?? '';
     const cfg = map[v] ?? { label: v || '—', cls: 'status-badge--unknown' };
@@ -165,8 +165,8 @@ window.initProductsGrid = function (wireId) {
 
             wire.call('queueChange', id, field, value);
         },
-        overlayLoadingTemplate: '<div class="grid-overlay"><span class="cache-progress__spinner"></span> Loading products…</div>',
-        overlayNoRowsTemplate: '<div class="grid-overlay grid-overlay--empty">No products match the current filters.</div>',
+        overlayLoadingTemplate: '<div class="grid-overlay"><span class="cache-progress__spinner"></span> Carregando produtos...</div>',
+        overlayNoRowsTemplate: '<div class="grid-overlay grid-overlay--empty">Nenhum produto corresponde aos filtros atuais.</div>',
     };
 
     const container = document.getElementById('products-grid');

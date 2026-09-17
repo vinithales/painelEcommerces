@@ -4,8 +4,10 @@ namespace App\Livewire\Stores;
 
 use App\Actions\Stores\DeleteStoreAction;
 use App\Models\Store;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -15,8 +17,10 @@ class IndexStores extends Component
 {
     use WithPagination;
 
+    #[Url]
     public string $search = '';
 
+    #[Url]
     public string $platform = 'all';
 
     public function updatingSearch(): void
@@ -31,6 +35,7 @@ class IndexStores extends Component
 
     public function delete(DeleteStoreAction $action, int $storeId): void
     {
+        Gate::authorize('configure');
         $store = Store::query()->findOrFail($storeId);
 
         $action->execute($store);
@@ -41,13 +46,13 @@ class IndexStores extends Component
     public function render()
     {
         $stores = Store::query()
-            ->with(['wooCommerceIntegration', 'magento2Integration'])
+            ->with(['checks', 'serverConnection'])
             ->when($this->search !== '', function ($query) {
                 $query->where(function ($innerQuery) {
                     $innerQuery
-                        ->where('name', 'like', '%' . $this->search . '%')
-                        ->orWhere('store_url', 'like', '%' . $this->search . '%')
-                        ->orWhere('panel_prefix', 'like', '%' . $this->search . '%');
+                        ->where('name', 'like', '%'.$this->search.'%')
+                        ->orWhere('store_url', 'like', '%'.$this->search.'%')
+                        ->orWhere('panel_prefix', 'like', '%'.$this->search.'%');
                 });
             })
             ->when($this->platform !== 'all', fn ($query) => $query->where('platform', $this->platform))

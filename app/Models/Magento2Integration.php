@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Magento2Integration extends Model
 {
+    protected $hidden = ['consumer_key', 'consumer_secret', 'access_token', 'access_token_secret', 'username', 'password'];
+
     use HasFactory;
 
     protected $fillable = [

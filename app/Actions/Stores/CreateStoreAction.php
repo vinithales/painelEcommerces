@@ -2,6 +2,7 @@
 
 namespace App\Actions\Stores;
 
+use App\Models\AuditEvent;
 use App\Models\Store;
 use Illuminate\Support\Facades\DB;
 
@@ -13,6 +14,7 @@ class CreateStoreAction
             $store = Store::create($storeData);
 
             $store->syncIntegration($integrationData);
+            AuditEvent::record($store->id, 'store', 'create', $storeData);
 
             return $store->fresh(['wooCommerceIntegration', 'magento2Integration']);
         });

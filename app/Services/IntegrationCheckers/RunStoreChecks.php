@@ -3,62 +3,27 @@
 namespace App\Services\IntegrationCheckers;
 
 use App\Models\Store;
-use App\Services\IntegrationCheckers\Checks\IndexCheck;
-use App\Services\IntegrationCheckers\Checks\RobotsTxtCheck;
-use App\Services\IntegrationCheckers\Checks\StoreCheck;
-use Illuminate\Contracts\Container\Container;
-use Throwable;
+use App\Services\Checks\CheckConfiguration;
+use App\Services\Checks\CheckDispatcher;
+use Illuminate\Database\Eloquent\Collection;
 
 class RunStoreChecks
 {
-    public function __construct(private readonly Container $container)
+    public function definitions(Store $store): Collection
     {
-    }
-
-    /**
-     * @return array<int, array{check_key: string, status: string, error: ?string}>
-     */
-    public function handle(Store $store): array
-    {
-        $results = [];
-
-        foreach ($this->checks() as $checkClass) {
-            /** @var StoreCheck $check */
-            $check = $this->container->make($checkClass);
-
-            if (! $check->supports($store)) {
-                continue;
-            }
-
-            try {
-                $result = $check->check($store);
-            } catch (Throwable $exception) {
-                report($exception);
-
-                $result = [
-                    'status' => 'failed',
-                    'error' => $exception->getMessage(),
-                ];
-            }
-
-            $results[] = [
-                'check_key' => $check->key(),
-                'status' => $result['status'],
-                'error' => $result['error'] ?? null,
-            ];
+        foreach (['robots_txt' => 'ROBOTS_TXT', 'indexability' => 'META_ROBOTS'] as $key => $type) {
+            $store->checks()->firstOrCreate(['legacy_key' => $key], ['name' => $type === 'ROBOTS_TXT' ? 'robots.txt' : 'Indexação', 'level' => 'SITE', 'check_type' => $type, 'configuration' => CheckConfiguration::defaults($type), 'interval_seconds' => 3600, 'enabled' => true, 'next_run_at' => now()]);
         }
 
-        return $results;
+        return $store->checks()->whereNotNull('legacy_key')->get();
     }
 
-    /**
-     * @return array<int, class-string<StoreCheck>>
-     */
-    private function checks(): array
+    public function handle(Store $store): array
     {
-        return [
-            RobotsTxtCheck::class,
-            IndexCheck::class,
-        ];
+        foreach ($this->definitions($store) as $check) {
+            app(CheckDispatcher::class)->dispatch($check, true);
+        }
+
+        return [];
     }
 }

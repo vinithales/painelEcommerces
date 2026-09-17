@@ -5,11 +5,14 @@ namespace App\Jobs;
 use App\Actions\Orders\UpdateOrderAction;
 use App\Models\ApiOperationLog;
 use App\Models\Store;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Throwable;
 
 class UpdateOrderJob implements ShouldQueue
@@ -32,12 +35,15 @@ class UpdateOrderJob implements ShouldQueue
     public function handle(UpdateOrderAction $action): void
     {
         if ($this->actorId) {
-            $user = \App\Models\User::findOrFail($this->actorId);
-            \Illuminate\Support\Facades\Gate::forUser($user)->authorize('manage');
-            \Illuminate\Support\Facades\Auth::setUser($user);
+            $user = User::findOrFail($this->actorId);
+            Gate::forUser($user)->authorize('manage');
+            Auth::setUser($user);
         }
-        try { $action->execute($this->store, $this->orderId, $this->attributes); }
-        finally { \Illuminate\Support\Facades\Auth::forgetGuards(); }
+        try {
+            $action->execute($this->store, $this->orderId, $this->attributes);
+        } finally {
+            Auth::forgetGuards();
+        }
     }
 
     public function failed(Throwable $exception): void

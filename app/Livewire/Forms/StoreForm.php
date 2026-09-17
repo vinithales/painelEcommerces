@@ -37,6 +37,7 @@ class StoreForm extends Form
     protected function rules(): array
     {
         $existing = $this->store && $this->store->platform === $this->platform;
+
         return [
             'name' => ['required', 'string', 'max:255'],
             'platform' => ['required', Rule::in([Store::PLATFORM_WOOCOMMERCE, Store::PLATFORM_MAGENTO2])],

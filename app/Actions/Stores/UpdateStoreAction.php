@@ -2,6 +2,7 @@
 
 namespace App\Actions\Stores;
 
+use App\Models\AuditEvent;
 use App\Models\Store;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +16,7 @@ class UpdateStoreAction
             $store->update($storeData);
 
             $store->replaceIntegration(array_merge($credentials, array_filter($integrationData, fn ($value) => $value !== null && $value !== '')));
-            \App\Models\AuditEvent::record($store->id, 'store', 'update', $storeData);
+            AuditEvent::record($store->id, 'store', 'update', $storeData);
 
             return $store->fresh(['wooCommerceIntegration', 'magento2Integration']);
         });

@@ -4,6 +4,7 @@ namespace App\Livewire\Stores;
 
 use App\Actions\Stores\CreateStoreAction;
 use App\Livewire\Forms\StoreForm;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -16,7 +17,7 @@ class CreateStore extends Component
 
     public function save(CreateStoreAction $action)
     {
-        \Illuminate\Support\Facades\Gate::authorize('configure');
+        Gate::authorize('configure');
         $this->form->validate();
 
         $action->execute($this->form->storeData(), $this->form->integrationData());

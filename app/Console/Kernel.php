@@ -2,8 +2,7 @@
 
 namespace App\Console;
 
-use App\Jobs\CheckStoreIntegrationJob;
-use App\Models\Store;
+use App\Models\StoreCheckRun;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -14,13 +13,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->call(function (){
-            Store::chunk(50, function ($stores) {
-                foreach ($stores as $store){
-                    CheckStoreIntegrationJob::dispatch($store);
-                }
-            });
-        })->dailyAt('12:00');
+        $schedule->command('checks:dispatch')->everyMinute()->withoutOverlapping();
+        $schedule->call(fn () => StoreCheckRun::where('created_at', '<', now()->subDays(config('operations.retention_days')))->delete())->daily();
     }
 
     /**

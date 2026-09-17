@@ -4,6 +4,9 @@ namespace App\Livewire\Stores;
 
 use App\Models\BulkEditTemplate;
 use App\Models\Store;
+use App\Services\PlatformApi\ProductFields;
+use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -40,7 +43,7 @@ class BulkEditTemplates extends Component
 
     public function openEdit(int $templateId): void
     {
-        \Illuminate\Support\Facades\Gate::authorize('manage');
+        Gate::authorize('manage');
         $template = BulkEditTemplate::where(fn ($q) => $q->whereNull('store_id')->orWhere('store_id', $this->store->id))->findOrFail($templateId);
         if (! $template) {
             return;
@@ -56,7 +59,7 @@ class BulkEditTemplates extends Component
 
     public function save(): void
     {
-        \Illuminate\Support\Facades\Gate::authorize('manage');
+        Gate::authorize('manage');
         $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'resourceType' => ['required', 'in:product,order'],
@@ -65,7 +68,7 @@ class BulkEditTemplates extends Component
 
         $attributeChanges = json_decode($this->rawAttributes, true);
         if ($this->resourceType === 'product') {
-            \App\Services\PlatformApi\ProductFields::validate($this->store, $attributeChanges);
+            ProductFields::validate($this->store, $attributeChanges);
         } else {
             validator(['attributes' => $attributeChanges], ['attributes' => 'required|array', 'attributes.status' => 'sometimes|in:pending,processing,on-hold,completed,cancelled', 'attributes.operation' => 'sometimes|in:cancel,hold,unhold'])->validate();
             abort_unless(count($attributeChanges) === 1 && count(array_intersect(array_keys($attributeChanges), ['status', 'operation'])) === 1, 422);
@@ -91,12 +94,12 @@ class BulkEditTemplates extends Component
 
     public function delete(int $templateId): void
     {
-        \Illuminate\Support\Facades\Gate::authorize('manage');
+        Gate::authorize('manage');
         BulkEditTemplate::where(fn ($q) => $q->whereNull('store_id')->orWhere('store_id', $this->store->id))->findOrFail($templateId)->delete();
         session()->flash('status', 'Template deleted.');
     }
 
-    public function render(): \Illuminate\Contracts\View\View
+    public function render(): View
     {
         $templates = BulkEditTemplate::where(
             fn ($q) => $q->whereNull('store_id')->orWhere('store_id', $this->store->id)

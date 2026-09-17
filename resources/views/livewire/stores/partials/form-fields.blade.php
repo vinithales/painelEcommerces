@@ -1,20 +1,20 @@
 <div class="form-grid">
     <section class="panel panel--form">
         <div class="panel__header">
-            <span class="eyebrow">Core profile</span>
+            <span class="eyebrow">Perfil principal</span>
             <h2>{{ $heading }}</h2>
             <p>{{ $description }}</p>
         </div>
 
         <div class="field-grid">
             <label class="field">
-                <span>Name</span>
+                <span>Nome</span>
                 <input type="text" wire:model.blur="form.name" placeholder="Carli Fitness" />
                 @error('form.name') <small class="field__error">{{ $message }}</small> @enderror
             </label>
 
             <label class="field">
-                <span>Platform</span>
+                <span>Plataforma</span>
                 <select wire:model.live="form.platform">
                     <option value="woocommerce">WooCommerce</option>
                     <option value="magento2">Magento 2</option>
@@ -23,25 +23,25 @@
             </label>
 
             <label class="field field--full">
-                <span>Store URL</span>
+                <span>URL da loja</span>
                 <input type="url" wire:model.blur="form.store_url" placeholder="https://store.example.com" />
                 @error('form.store_url') <small class="field__error">{{ $message }}</small> @enderror
             </label>
 
             <label class="field">
-                <span>Panel prefix</span>
+                <span>Prefixo do painel</span>
                 <input type="text" wire:model.blur="form.panel_prefix" placeholder="carlifitness" />
                 @error('form.panel_prefix') <small class="field__error">{{ $message }}</small> @enderror
             </label>
 
             <label class="field">
-                <span>Payment gateway</span>
+                <span>Gateway de pagamento</span>
                 <input type="text" wire:model.blur="form.payment_gateway" placeholder="Pagar.me" />
                 @error('form.payment_gateway') <small class="field__error">{{ $message }}</small> @enderror
             </label>
 
             <label class="field field--full">
-                <span>Shipping gateway</span>
+                <span>Gateway de envio</span>
                 <input type="text" wire:model.blur="form.shipping_gateway" placeholder="Correios, Melhor Envio, Frenet" />
                 @error('form.shipping_gateway') <small class="field__error">{{ $message }}</small> @enderror
             </label>
@@ -50,13 +50,13 @@
 
     <section class="panel panel--form">
         <div class="panel__header">
-            <span class="eyebrow">Integration credentials</span>
-            <h2>{{ $form->platform === 'woocommerce' ? 'WooCommerce keys' : 'Magento 2 tokens' }}</h2>
+            <span class="eyebrow">Credenciais de integração</span>
+            <h2>{{ $form->platform === 'woocommerce' ? 'Chaves do WooCommerce' : 'Tokens do Magento 2' }}</h2>
             <p>
                 @if ($form->platform === 'woocommerce')
-                    Keep the consumer pair isolated for stores running WooCommerce.
+                    Mantenha o par de consumidor isolado para lojas que usam WooCommerce.
                 @else
-                    Magento 2 requires the full token quartet for API operations.
+                    O Magento 2 exige o conjunto completo de tokens para operações de API.
                 @endif
             </p>
         </div>
@@ -68,38 +68,38 @@
 
         <div class="field-grid">
             <label class="field">
-                <span>Consumer key</span>
+                <span>Chave do consumidor</span>
                 <input type="text" wire:model.blur="form.consumer_key" autocomplete="off" />
                 @error('form.consumer_key') <small class="field__error">{{ $message }}</small> @enderror
             </label>
 
             <label class="field">
-                <span>Consumer secret</span>
+                <span>Segredo do consumidor</span>
                 <input type="password" wire:model.blur="form.consumer_secret" autocomplete="new-password" />
                 @error('form.consumer_secret') <small class="field__error">{{ $message }}</small> @enderror
             </label>
 
             @if ($form->platform === 'magento2')
                 <label class="field">
-                    <span>Access token</span>
+                    <span>Token de acesso</span>
                     <input type="text" wire:model.blur="form.access_token" autocomplete="off" />
                     @error('form.access_token') <small class="field__error">{{ $message }}</small> @enderror
                 </label>
 
                 <label class="field">
-                    <span>Access token secret</span>
+                    <span>Segredo do token de acesso</span>
                     <input type="password" wire:model.blur="form.access_token_secret" autocomplete="new-password" />
                     @error('form.access_token_secret') <small class="field__error">{{ $message }}</small> @enderror
                 </label>
 
                 <label class="field">
-                    <span>Username</span>
+                    <span>Usuário</span>
                     <input type="text" wire:model.blur="form.username" autocomplete="off" />
                     @error('form.username') <small class="field__error">{{ $message }}</small> @enderror
                 </label>
 
                 <label class="field">
-                    <span>Password</span>
+                    <span>Senha</span>
                     <input type="password" wire:model.blur="form.password" autocomplete="new-password" />
                     @error('form.password') <small class="field__error">{{ $message }}</small> @enderror
                 </label>
@@ -107,10 +107,10 @@
         </div>
 
         <div class="panel__footer">
-            <a href="{{ route('stores.index') }}" wire:navigate class="button button--ghost">Cancel</a>
+            <a href="{{ route('stores.index') }}" wire:navigate class="button button--ghost">Cancelar</a>
             <button type="submit" class="button">
                 <span wire:loading.remove>{{ $submitLabel }}</span>
-                <span wire:loading>Saving...</span>
+                <span wire:loading>Salvando...</span>
             </button>
         </div>
     </section>

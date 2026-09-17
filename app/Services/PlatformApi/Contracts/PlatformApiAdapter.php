@@ -5,7 +5,9 @@ namespace App\Services\PlatformApi\Contracts;
 interface PlatformApiAdapter
 {
     public function storeInformation(): array;
+
     public function telemetry(): array;
+
     /**
      * List products with optional filters.
      *

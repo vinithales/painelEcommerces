@@ -28,7 +28,7 @@
 </tbody></table></details>@endif
 @if($selectedKey)
 <div class="drawer-backdrop"></div>
-<aside class="drawer" role="dialog" aria-modal="true" aria-label="Detalhes" x-data x-init="$nextTick(() => $el.querySelector('button').focus())" @keydown.escape="$wire.closeDetail()" >
+<aside class="drawer" role="dialog" aria-modal="true" aria-label="Detalhes" x-data x-init="$nextTick(() => $el.querySelector('button').focus())" @keydown.escape="if(confirm('Fechar e descartar alterações não salvas?')) $wire.closeDetail()" >
 <header><h2>{{ $detail['name'] ?? 'Pedido '.($detail['number']??$selectedKey) }}</h2><button class="btn btn-secondary" wire:click="closeDetail" wire:confirm="Fechar e descartar alterações não salvas?">Fechar</button></header>
 @foreach($errors->all() as $error)<div class="error">{{ $error }}</div>@endforeach
 <div class="toolbar">
@@ -52,7 +52,7 @@ $labels=['id'=>'ID','name'=>'Nome','sku'=>'SKU','type'=>'Tipo','status'=>'Status
 @can('manage')
 <section data-dirty><h3>Editar</h3><p class="muted">Somente campos alterados serão enviados.</p>
 @if($resource==='product')<div class="field-grid">@foreach($editableFields as $field=>$rule)
-<label>{{ $labels[$field]??$field }}
+<label>{{ $field==='price'?'Preço regular':($labels[$field]??$field) }}
 @if(in_array($field,['description','short_description']))<textarea wire:model="draft.{{ $field }}"></textarea>
 @elseif($field==='manage_stock')<input type="checkbox" wire:model="draft.{{ $field }}">
 @else<input wire:model="draft.{{ $field }}">@endif</label>

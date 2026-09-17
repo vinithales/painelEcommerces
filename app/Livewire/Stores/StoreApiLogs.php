@@ -4,6 +4,7 @@ namespace App\Livewire\Stores;
 
 use App\Models\ApiOperationLog;
 use App\Models\Store;
+use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -58,7 +59,7 @@ class StoreApiLogs extends Component
         }
     }
 
-    public function render(): \Illuminate\Contracts\View\View
+    public function render(): View
     {
         $logs = ApiOperationLog::where('store_id', $this->store->id)
             ->when($this->operationType !== 'all', fn ($q) => $q->where('operation_type', $this->operationType))
@@ -69,6 +70,6 @@ class StoreApiLogs extends Component
             ->latest()
             ->paginate(20);
 
-        return view('livewire.stores.store-api-logs', ['logs' => $logs]);
+        return view('livewire.stores.store-api-logs', ['logs' => $logs])->layout('layouts.app', ['store' => $this->store]);
     }
 }

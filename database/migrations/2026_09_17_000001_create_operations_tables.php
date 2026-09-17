@@ -4,12 +4,11 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-
-return new class extends Migration {
-    
+return new class extends Migration
+{
     public function up(): void
     {
-        Schema::table('users', fn(Blueprint $t) => $t->string('role')->default('n1'));
+        Schema::table('users', fn (Blueprint $t) => $t->string('role')->default('n1'));
         Schema::create('server_connections', function (Blueprint $t) {
             $t->id();
             $t->foreignId('store_id')->unique()->constrained()->cascadeOnDelete();
@@ -81,10 +80,12 @@ return new class extends Migration {
             $t->timestamps();
         });
     }
+
     public function down(): void
     {
-        foreach (['store_check_alerts', 'store_check_runs', 'store_checks', 'audit_events', 'server_connections'] as $table)
+        foreach (['store_check_alerts', 'store_check_runs', 'store_checks', 'audit_events', 'server_connections'] as $table) {
             Schema::dropIfExists($table);
-        Schema::table('users', fn(Blueprint $t) => $t->dropColumn('role'));
+        }
+        Schema::table('users', fn (Blueprint $t) => $t->dropColumn('role'));
     }
 };

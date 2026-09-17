@@ -4,17 +4,16 @@ namespace App\Actions\Products;
 
 use App\Jobs\UpdateProductJob;
 use App\Models\Store;
+use App\Services\PlatformApi\ProductFields;
 use App\Services\PlatformApi\ProductsApiService;
 
 class BulkUpdateProductsAction
 {
-    public function __construct(private readonly ProductsApiService $service)
-    {
-    }
+    public function __construct(private readonly ProductsApiService $service) {}
 
     public function execute(Store $store, array $productIds, array $attributes, bool $dryRun = false): array
     {
-        \App\Services\PlatformApi\ProductFields::validate($store, $attributes);
+        ProductFields::validate($store, $attributes);
         validator(['ids' => $productIds], ['ids' => 'required|array|max:100', 'ids.*' => 'required|string|max:255'])->validate();
         if ($dryRun) {
             $previews = [];

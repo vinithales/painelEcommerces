@@ -5,6 +5,7 @@ namespace App\Livewire\Stores;
 use App\Actions\Stores\UpdateStoreAction;
 use App\Livewire\Forms\StoreForm;
 use App\Models\Store;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -25,7 +26,7 @@ class EditStore extends Component
 
     public function save(UpdateStoreAction $action)
     {
-        \Illuminate\Support\Facades\Gate::authorize('configure');
+        Gate::authorize('configure');
         $this->form->validate();
 
         $this->store = $action->execute(

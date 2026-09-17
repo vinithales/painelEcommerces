@@ -42,11 +42,20 @@ abstract class ResourceTable extends Component
 
     public array $draft = [];
 
+    #[Locked]
+    public array $initialDraft = [];
+
+    public ?string $detailMessage = null;
+
     public array $previews = [];
 
     public array $pendingChanges = [];
 
     public array $feedback = [];
+
+    public ?string $rollbackMessage = null;
+
+    public bool $rollbackFailed = false;
 
     public bool $showBulkModal = false;
 
@@ -113,14 +122,32 @@ abstract class ResourceTable extends Component
     {
         $this->resetErrorBag();
         $this->previews = [];
+        $this->detailMessage = null;
+        $this->selectedKey = $key;
+        $this->detail = $this->draft = $this->initialDraft = [];
         try {
-            $this->detail = Redactor::clean($this->service()->get($this->store, $key)['data']);
-            $this->selectedKey = $key;
-            $this->draft = $this->resource() === 'product' ? array_intersect_key(ProductFields::values($this->store, $this->detail), ProductFields::rules($this->store)) : [($this->store->isMagento2() ? 'operation' : 'status') => ($this->store->isMagento2() ? '' : $this->detail['status'])];
-            $this->dispatch('edits-saved');
+            $this->acceptDetail($this->service()->get($this->store, $key)['data']);
         } catch (\Throwable $e) {
             $this->addError('api', Redactor::clean($e->getMessage()));
         }
+    }
+
+    protected function acceptDetail(array $detail): void
+    {
+        $this->detail = Redactor::clean($detail);
+        $this->draft = $this->resource() === 'product' ? array_intersect_key(ProductFields::values($this->store, $this->detail), ProductFields::rules($this->store)) : [($this->store->isMagento2() ? 'operation' : 'status') => ($this->store->isMagento2() ? '' : $this->detail['status'])];
+        $this->initialDraft = $this->draft;
+        $this->previews = [];
+        $this->dispatch('edits-saved');
+    }
+
+    public function discardDetail(): void
+    {
+        $this->draft = $this->initialDraft;
+        $this->previews = [];
+        $this->resetErrorBag();
+        $this->detailMessage = 'Alterações descartadas.';
+        $this->dispatch('edits-saved');
     }
 
     public function closeDetail(): void
@@ -128,6 +155,9 @@ abstract class ResourceTable extends Component
         $this->selectedKey = null;
         $this->detail = [];
         $this->draft = [];
+        $this->initialDraft = [];
+        $this->detailMessage = null;
+        $this->resetErrorBag();
         $this->previews = [];
         $this->dispatch('edits-saved');
     }
@@ -158,21 +188,24 @@ abstract class ResourceTable extends Component
         if (! $this->selectedKey) {
             return;
         }
+        $this->resetErrorBag();
+        $this->detailMessage = null;
         try {
             $changes = $this->changes();
             if (! $changes) {
+                $this->detailMessage = 'Nenhuma alteração pendente.';
                 $this->dispatch('edits-saved');
 
                 return;
             }
             if ($this->resource() === 'product') {
-                app(UpdateProductAction::class)->execute($this->store, $this->selectedKey, $changes);
+                $result = app(UpdateProductAction::class)->execute($this->store, $this->selectedKey, $changes);
             } else {
-                $this->service()->update($this->store, $this->selectedKey, $changes);
+                $result = $this->service()->update($this->store, $this->selectedKey, $changes);
             }
-            $this->openDetail($this->selectedKey);
-            $this->refreshRows();
-            session()->flash('status', 'Alteração confirmada pela plataforma.');
+            $this->acceptDetail($result['data']);
+            $this->dispatch('resource-row-updated', row: array_diff_key($this->detail, array_flip(['raw', 'description', 'short_description', 'gallery', 'attributes', 'variations', 'categories', 'items', 'shipping_address'])));
+            $this->detailMessage = 'Alteração aplicada e dados atualizados pela plataforma.';
         } catch (\Throwable $e) {
             $this->addError('edit', Redactor::clean($e->getMessage()));
         }
@@ -250,14 +283,18 @@ abstract class ResourceTable extends Component
     {
         Gate::authorize('manage');
         $snapshot = ProductSnapshot::where('store_id', $this->store->id)->findOrFail($id);
+        $this->rollbackMessage = null;
+        $this->rollbackFailed = false;
         try {
             app(RollbackProductAction::class)->execute($snapshot);
             $this->refreshRows();
             if ($this->selectedKey) {
                 $this->openDetail($this->selectedKey);
-            }session()->flash('status', 'Rollback concluído.');
+            }
+            $this->rollbackMessage = 'Rollback concluído.';
         } catch (\Throwable $e) {
-            $this->addError('edit', Redactor::clean($e->getMessage()));
+            $this->rollbackFailed = true;
+            $this->rollbackMessage = 'Falha ao desfazer a alteração: '.Redactor::clean($e->getMessage());
         }
     }
 

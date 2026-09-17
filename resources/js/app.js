@@ -11,6 +11,11 @@ function applyStoredTheme() {
 applyStoredTheme();
 
 document.addEventListener('click', e => {
+ if(e.target.closest('[data-back-button]')) {
+  const button=e.target.closest('[data-back-button]');
+  if(window.history.length>1) window.history.back();
+  else window.location.href=button.dataset.backFallback;
+ }
  if(e.target.closest('[data-theme-toggle]')) {
   const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';
   document.documentElement.dataset.theme=theme; localStorage.setItem('bring-theme',theme);

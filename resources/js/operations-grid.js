@@ -1,4 +1,5 @@
 import { createGrid, ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community';
+import './resource-drawer';
 ModuleRegistry.registerModules([AllCommunityModule]);
 let cleanup = () => {};
 let dirty=false;
@@ -19,15 +20,24 @@ function init() {
   {field:'url',headerName:'URL',cellRenderer:p=>{const u=safeUrl(p.value);if(!u)return textCell({value:'—'});const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Abrir na loja';a.addEventListener('click',e=>e.stopPropagation());return a;}},
   {field:'price',headerName:'Preço'},{field:'weight',headerName:'Peso'},{field:'status',headerName:'Status'}
  ]:[{field:'number',headerName:'Pedido'},{field:'created_at',headerName:'Data'},{field:'customer',headerName:'Cliente',flex:1,minWidth:170},{field:'customer_email',headerName:'E-mail',minWidth:220},{field:'status',headerName:'Status'},{field:'total',headerName:'Total'},{field:'payment_method',headerName:'Pagamento'}];
- const api=createGrid(el,{theme:theme(),columnDefs:columns,rowData:[],loading:true,rowHeight:54,defaultColDef:{resizable:true,sortable:false,width:130,cellRenderer:textCell},rowSelection:{mode:'multiRow',enableClickSelection:false},onRowClicked:e=>{if(dirty&&!confirm('Descartar alterações não salvas?'))return;wire.call('openDetail',String(product?e.data.key:e.data.id));},overlayNoRowsTemplate:'<span>Nenhum resultado nesta página.</span>'});
+ let opening=false;
+ const open=async e=>{
+  if(opening || (dirty&&!confirm('Descartar alterações não salvas?')))return;
+  opening=true;
+  window.dispatchEvent(new CustomEvent('resource-opening',{detail:{title:e.data.name??`Pedido ${e.data.number??e.data.id}`}}));
+  try { await wire.call('openDetail',String(product?e.data.key:e.data.id)); }
+  finally { opening=false;window.dispatchEvent(new CustomEvent('resource-opened')); }
+ };
+ const api=createGrid(el,{theme:theme(),columnDefs:columns,rowData:[],getRowId:p=>String(product?p.data.key:p.data.id),loading:true,rowHeight:54,defaultColDef:{resizable:true,sortable:false,width:130,cellRenderer:textCell},rowSelection:{mode:'multiRow',enableClickSelection:false},onRowClicked:open,overlayNoRowsTemplate:'<span>Nenhum resultado nesta página.</span>'});
+ const updated=e=>{const row=e.detail.row;if(row&&api.getRowNode(String(product?row.key:row.id)))api.applyTransaction({update:[row]});};
  const rows=e=>{api.setGridOption('loading',false);api.setGridOption('rowData',e.detail.rows??[]);};
  const themed=()=>api.setGridOption('theme',theme());
  const bulk=e=>{if(e.target.closest('[data-bulk-select]')){const ids=api.getSelectedRows().map(r=>String(product?r.key:r.id));if(ids.length)wire.call('openBulkApplyModal',ids);else alert('Selecione ao menos uma linha.');}};
- window.addEventListener('resource-rows',rows);window.addEventListener('theme-changed',themed);document.addEventListener('click',bulk);
+ window.addEventListener('resource-row-updated',updated);window.addEventListener('resource-rows',rows);window.addEventListener('theme-changed',themed);document.addEventListener('click',bulk);
  wire.call('loadRows').then(r=>{if(!api.isDestroyed()){api.setGridOption('loading',false);api.setGridOption('rowData',r??[]);}});
- cleanup=()=>{window.removeEventListener('resource-rows',rows);window.removeEventListener('theme-changed',themed);document.removeEventListener('click',bulk);api.destroy();cleanup=()=>{};};
+ cleanup=()=>{window.removeEventListener('resource-row-updated',updated);window.removeEventListener('resource-rows',rows);window.removeEventListener('theme-changed',themed);document.removeEventListener('click',bulk);api.destroy();cleanup=()=>{};};
 }
-document.addEventListener('input',e=>{if(e.target.closest('[data-dirty]'))dirty=true;});
+window.addEventListener('resource-dirty',e=>{dirty=Boolean(e.detail.dirty);});
 window.addEventListener('edits-saved',()=>{dirty=false;});
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 document.addEventListener('livewire:navigate',e=>{if(dirty&&!confirm('Descartar alterações não salvas?'))e.preventDefault();});

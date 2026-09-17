@@ -1,5 +1,6 @@
 <div>
 <div class="page-header"><div><h2>{{ $resource==='product'?'Produtos':'Pedidos' }}</h2><p>{{ $store->name }} · {{ $store->platform }}</p></div><a wire:navigate class="btn btn-secondary" href="{{ route('stores.api-logs',$store) }}">Histórico de API</a></div>
+@if($rollbackMessage)<div class="flash {{ $rollbackFailed ? 'flash--error' : '' }}" role="{{ $rollbackFailed ? 'alert' : 'status' }}">{{ $rollbackMessage }}</div>@endif
 @foreach($errors->all() as $error)<div class="error" role="alert">{{ $error }}</div>@endforeach
 <form wire:submit="applyFilters" class="panel">
 <div class="field-grid">

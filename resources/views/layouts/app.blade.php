@@ -21,7 +21,7 @@
 </nav></aside>
 @endauth
 <div class="main-content" @guest style="margin-left:0" @endguest>
-<header class="topbar"><div class="topbar__actions">@auth<button class="topbar__icon-btn" data-sidebar-toggle aria-label="Alternar navegação"><x-icon name="menu"/></button>@endauth
+<header class="topbar"><div class="topbar__actions"><button class="topbar__icon-btn" data-back-button data-back-fallback="{{ route('stores.index') }}" aria-label="Voltar" title="Voltar"><x-icon name="arrow-left"/></button>@auth<button class="topbar__icon-btn" data-sidebar-toggle aria-label="Alternar navegação"><x-icon name="menu"/></button>@endauth
 <a wire:navigate href="/stores">BringPainel</a><span>/ {{ $title ?? 'Operação' }}</span></div>
 <div class="topbar__actions"><button data-theme-toggle class="topbar__icon-btn" aria-label="Alternar tema"><x-icon name="sun"/></button>
 @auth<span>{{ auth()->user()->name }}</span><form method="POST" action="{{ route('logout') }}">@csrf<button class="btn btn-secondary">Sair</button></form>@endauth</div></header>

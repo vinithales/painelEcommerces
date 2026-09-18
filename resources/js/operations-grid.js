@@ -13,7 +13,7 @@ function init() {
  if(!el)return;
  const wire=window.Livewire.find(el.closest('[wire\\:id]').getAttribute('wire:id'));
  const product=el.dataset.resourceGrid==='product';
- const theme=()=>themeQuartz.withParams({accentColor:'#147d64',backgroundColor:getComputedStyle(document.documentElement).getPropertyValue('--surface').trim(),foregroundColor:getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),browserColorScheme:document.documentElement.dataset.theme});
+ const theme=()=>themeQuartz.withParams({accentColor:getComputedStyle(document.documentElement).getPropertyValue('--primary').trim(),backgroundColor:getComputedStyle(document.documentElement).getPropertyValue('--surface').trim(),foregroundColor:getComputedStyle(document.documentElement).getPropertyValue('--text').trim(),browserColorScheme:document.documentElement.dataset.theme});
  const columns=product?[
   {field:'image',headerName:'Imagem',width:90,cellRenderer:p=>{const src=safeUrl(p.value);if(!src)return textCell({value:'—'});const img=document.createElement('img');img.src=src;img.alt='';img.className='product-image';img.loading='lazy';return img;}},
   {field:'name',headerName:'Nome',flex:2,minWidth:220},{field:'sku',headerName:'SKU',minWidth:160},

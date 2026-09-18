@@ -1,20 +1,20 @@
-# BringPainel — Documento de Orientações para Codex (SDD)
+# BeaconHub — Documento de Orientações para Codex (SDD)
 
 ## 1. Objetivo deste documento
 
-Este documento define as orientações funcionais, arquiteturais, visuais e de qualidade para a evolução do **BringPainel** usando uma abordagem de **Specification-Driven Development (SDD)**.
+Este documento define as orientações funcionais, arquiteturais, visuais e de qualidade para a evolução do **BeaconHub** usando uma abordagem de **Specification-Driven Development (SDD)**.
 
 O Codex deve utilizar este arquivo como fonte principal de requisitos durante a refatoração e expansão do sistema.
 
 A implementação deve partir do código existente, preservando recursos que já funcionam, reduzindo regressões e evitando reescritas desnecessárias.
 
-O objetivo é transformar o BringPainel em uma ferramenta interna de operação, suporte e diagnóstico para lojas **Magento 2** e **WooCommerce**, incluindo recursos de gerenciamento de produtos e pedidos, diagnóstico de aplicação, monitoramento de servidor, verificações periódicas e alertas operacionais.
+O objetivo é transformar o BeaconHub em uma ferramenta interna de operação, suporte e diagnóstico para lojas **Magento 2** e **WooCommerce**, incluindo recursos de gerenciamento de produtos e pedidos, diagnóstico de aplicação, monitoramento de servidor, verificações periódicas e alertas operacionais.
 
 ---
 
 # 2. Contexto atual do sistema
 
-O BringPainel é um backoffice em Laravel 10 usado para gerenciar lojas conectadas por WooCommerce e Magento 2.
+O BeaconHub é um backoffice em Laravel 10 usado para gerenciar lojas conectadas por WooCommerce e Magento 2.
 
 Stack atual:
 
@@ -664,7 +664,7 @@ Nunca permitir leitura livre de caminhos informados pelo usuário.
 
 ## 12.1 Objetivo
 
-Adicionar um módulo onde usuários autorizados possam criar verificações que serão executadas periodicamente pelo BringPainel.
+Adicionar um módulo onde usuários autorizados possam criar verificações que serão executadas periodicamente pelo BeaconHub.
 
 Essas verificações devem validar condições operacionais e gerar alertas quando algo sair do estado esperado.
 
@@ -941,7 +941,7 @@ Separar falha da verificação de falha operacional.
 Exemplo:
 
 ```text
-UNKNOWN = o BringPainel não conseguiu executar o check
+UNKNOWN = o BeaconHub não conseguiu executar o check
 CRITICAL = o check foi executado e encontrou condição crítica
 ```
 
@@ -1412,7 +1412,7 @@ Distinguir claramente:
 
 - falha no alvo;
 - falha na conexão;
-- falha interna do BringPainel.
+- falha interna do BeaconHub.
 
 ---
 
@@ -1615,7 +1615,7 @@ Não fazer:
 
 # 33. Resultado esperado
 
-O BringPainel deve evoluir de um painel CRUD e de API para uma plataforma interna de suporte e operação.
+O BeaconHub deve evoluir de um painel CRUD e de API para uma plataforma interna de suporte e operação.
 
 O resultado final deve permitir que a equipe da Bring:
 

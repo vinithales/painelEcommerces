@@ -1,4 +1,4 @@
-# Entrega SDD — BringPainel
+# Entrega SDD — BeaconHub
 
 Branch: `feat/bringpainel-sdd`. Base: `a6778ba`. O documento fornecido foi preservado e a descoberta/especificação precedeu a implementação. Alterações compatíveis de tradução e estilo surgidas durante o trabalho foram incorporadas com autorização do usuário.
 

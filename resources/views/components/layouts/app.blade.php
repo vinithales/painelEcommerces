@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{{ $title ?? 'BringPainel' }}</title>
+        <title>{{ isset($title) ? $title.' | BeaconHub' : 'BeaconHub' }}</title>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @livewireStyles
     </head>
@@ -12,7 +12,7 @@
             <header class="topbar">
                 <a href="{{ route('stores.index') }}" wire:navigate class="brand">
                     <span>
-                        <strong>BringPainel</strong>
+                        <x-brand-logo/>
                     </span>
                 </a>
 

@@ -41,7 +41,7 @@ class StoreCheckAlert
                 (string) config('mail.from.address'),
                 (string) config('mail.from.name')
             ))
-            ->subject("[BringPainel] Alerta de SEO: {$this->store->name}")
+            ->subject("[BeaconHub] Alerta de SEO: {$this->store->name}")
             ->html($markdown->render('emails.store-check-alert', $viewData)->toHtml())
             ->text($markdown->renderText('emails.store-check-alert', $viewData)->toHtml());
 

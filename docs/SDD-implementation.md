@@ -1,4 +1,4 @@
-# BringPainel — especificação de evolução
+# BeaconHub — especificação de evolução
 
 ## Discovery (17/09/2026)
 

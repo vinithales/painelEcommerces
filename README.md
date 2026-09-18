@@ -1,4 +1,4 @@
-# BringPainel
+# BeaconHub
 
 Backoffice interno para opera??o de lojas WooCommerce e Magento 2. Mant?m Laravel 10, Livewire 3, AG Grid Community e Vite 4, com autentica??o, produtos/pedidos, ferramentas de suporte, diagn?stico Magento e verifica??es peri?dicas.
 
@@ -99,4 +99,4 @@ docker compose exec app php artisan view:cache
 
 A su?te for?a SQLite :memory: antes de qualquer RefreshDatabase, mesmo quando Docker exporta vari?veis MySQL. APIs s?o simuladas nos testes, sem altera??es em lojas reais. N?o remova a prote??o de tests/CreatesApplication.php.
 
-Especifica??o: [SDD](BringPainel_Codex_SDD.md), [discovery e design](docs/SDD-implementation.md), [relat?rio de entrega](docs/SDD-delivery.md).
+Especifica??o: [SDD](BeaconHub_Codex_SDD.md), [discovery e design](docs/SDD-implementation.md), [relat?rio de entrega](docs/SDD-delivery.md).

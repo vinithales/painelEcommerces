@@ -13,6 +13,6 @@ class OperationalCheckAlert extends Mailable
     {
         $check = $this->alert->check;
 
-        return $this->subject('[BringPainel] '.$check->store->name.' — '.$this->alert->to_status)->view('emails.operational-check-alert');
+        return $this->subject('[BeaconHub] '.$check->store->name.' — '.$this->alert->to_status)->view('emails.operational-check-alert');
     }
 }

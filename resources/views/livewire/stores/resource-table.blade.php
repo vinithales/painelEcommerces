@@ -49,7 +49,55 @@ $sections=$resource==='product'?[
 $labels=['id'=>'ID','name'=>'Nome','sku'=>'SKU','type'=>'Tipo','status'=>'Status','visibility'=>'Visibilidade','description'=>'Descrição','short_description'=>'Descrição curta','url'=>'URL','regular_price'=>'Preço regular','sale_price'=>'Promocional','price'=>'Preço atual','currency'=>'Moeda','stock_quantity'=>'Quantidade','stock_status'=>'Situação','manage_stock'=>'Gerenciar estoque','weight'=>'Peso','dimensions'=>'Dimensões','categories'=>'Categorias','attributes'=>'Atributos','variations'=>'Variações','number'=>'Número','created_at'=>'Data','state'=>'State Magento','customer'=>'Nome','customer_email'=>'E-mail','phone'=>'Telefone','items'=>'Itens','subtotal'=>'Subtotal','discount'=>'Desconto','shipping_total'=>'Frete','tax'=>'Impostos','total'=>'Total','payment_method'=>'Método','payment_status'=>'Pagamento informado','transaction_id'=>'Transação','shipping_method'=>'Método','shipping_address'=>'Endereço','tracking'=>'Rastreamento'];
 @endphp
 @foreach($sections as $title=>$fields)<section><h3>{{ $title }}</h3><dl class="detail-list">@foreach($fields as $field)<dt>{{ $labels[$field]??$field }}</dt><dd>@if(is_array($detail[$field]??null))<pre>{{ json_encode($detail[$field],JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre>@else{{ $detail[$field] ?? 'Não informado pela plataforma' }}@endif</dd>@endforeach</dl></section>@endforeach
-@if($resource==='product')<section><h3>Mídia</h3><div class="gallery">@forelse($detail['gallery']??[] as $img)@if($img['src'])<img src="{{ $img['src'] }}" alt="{{ $img['alt'] }}">@endif @empty<p class="muted">Sem imagens.</p>@endforelse</div></section>@endif
+@if($resource==='product')
+<section>
+<h3>Mídia</h3>
+<div class="gallery">
+@forelse($detail['gallery']??[] as $imageIndex=>$img)
+@if($img['src'])
+<figure class="product-media-card">
+<img src="{{ $img['src'] }}" alt="{{ $img['alt'] }}" loading="lazy">
+<figcaption class="image-attributes">
+<span class="image-attribute" title="{{ $img['alt'] ?: 'Sem texto alternativo' }}">ALT: {{ \Illuminate\Support\Str::limit($img['alt'] ?: 'não informado', 28) }}</span>
+@if($img['name'])<span class="image-attribute" title="{{ $img['name'] }}">Nome: {{ \Illuminate\Support\Str::limit($img['name'], 24) }}</span>@endif
+<span class="image-attribute">Posição: {{ $img['position'] }}</span>
+@foreach($img['types']??[] as $imageType)<span class="image-attribute">{{ $imageType }}</span>@endforeach
+@if($img['disabled']??false)<span class="image-attribute image-attribute--disabled">Oculta</span>@endif
+</figcaption>
+@can('manage')
+@if(isset($draft['images'][$imageIndex]))
+<details class="image-editor" data-dirty>
+<summary>Editar atributos</summary>
+<label>Texto alternativo
+<input wire:model="draft.images.{{ $imageIndex }}.alt" maxlength="2000">
+</label>
+@if($store->isWooCommerce())
+<label>Nome da imagem
+<input wire:model="draft.images.{{ $imageIndex }}.name" maxlength="255">
+</label>
+@endif
+<label>Posição
+<input type="number" min="0" max="999" wire:model="draft.images.{{ $imageIndex }}.position">
+</label>
+@if($store->isMagento2())
+<label class="image-option"><input type="checkbox" wire:model="draft.images.{{ $imageIndex }}.disabled"> Ocultar na loja</label>
+<fieldset class="image-roles"><legend>Papéis</legend>
+@foreach(['image'=>'Principal','small_image'=>'Listagens','thumbnail'=>'Miniatura'] as $imageType=>$imageTypeLabel)
+<label class="image-option"><input type="checkbox" value="{{ $imageType }}" wire:model="draft.images.{{ $imageIndex }}.types"> {{ $imageTypeLabel }}</label>
+@endforeach
+</fieldset>
+@endif
+</details>
+@endif
+@endcan
+</figure>
+@endif
+@empty
+<p class="muted">Sem imagens.</p>
+@endforelse
+</div>
+</section>
+@endif
 @can('manage')
 <section data-dirty><h3>Editar</h3><p class="muted">Somente campos alterados serão enviados.</p>
 @if($resource==='product')<div class="field-grid">@foreach($editableFields as $field=>$rule)

@@ -6,7 +6,7 @@
 /* ── Tokens ─────────────────────────────────────────────────── */
 :root {
   --brand-green: #10634f;
-  --brand-green-deep: #1c493e;
+  --brand-green-deep: #004334;
   --primary:                var(--brand-green);
   --primary-hover:          var(--brand-green-deep);
   --primary-soft:           #e2ece8;
@@ -20,7 +20,7 @@
   --surface-high:           #e5e8ee;
   --surface-highest:        #e0e3e8;
   --surface-border:         rgba(140, 113, 106, 0.2);
-  --sidebar-bg:             #2d3135;
+  --sidebar-bg:             #004334;
   --sidebar-text:           #ffdbd1;
   --sidebar-muted:          rgba(255,219,209,0.5);
   --sidebar-active-bg:      rgba(255,219,209,0.1);
@@ -465,7 +465,18 @@ pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:450px;overflow:auto;
 .badge-WARNING {background:var(--warning-soft);color:var(--warning-text)}
 .badge-CRITICAL {background:var(--danger-soft);color:var(--danger-text)}
 .detail-list {display:grid;grid-template-columns:140px 1fr;gap:8px;margin:10px 0}.detail-list dt {color:var(--text-muted)}.detail-list dd {margin:0;overflow-wrap:anywhere}
-.product-image {width:45px;height:45px;object-fit:contain}.gallery {display:flex;gap:8px;flex-wrap:wrap}.gallery img {width:100px;height:100px;object-fit:contain}
+.product-image {width:45px;height:45px;object-fit:contain}.gallery {display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}.gallery img {width:100%;height:150px;object-fit:contain;background:var(--surface-low);border-radius:8px}
+.product-media-card {min-width:0;margin:0;padding:10px;border:1px solid var(--surface-border);border-radius:10px;background:var(--surface)}
+.image-attributes {display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.image-attribute {display:inline-flex;max-width:100%;padding:3px 7px;border-radius:999px;background:var(--surface-container);color:var(--text-muted);font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.image-attribute--disabled {background:var(--danger-soft);color:var(--danger-text)}
+.image-editor {margin-top:10px;padding-top:8px;border-top:1px solid var(--surface-border)}
+.image-editor summary {color:var(--primary);font-size:12px;font-weight:600;cursor:pointer}
+.image-editor label {margin-top:10px;margin-bottom:0}
+.image-editor input:not([type="checkbox"]) {font-size:12px;padding:7px 8px}
+.image-option {display:flex;align-items:center;gap:7px;color:var(--text)}
+.image-roles {margin-top:10px;padding:8px;border:1px solid var(--surface-border);border-radius:7px}
+.image-roles legend {padding:0 4px;color:var(--text-muted);font-size:11px}
 .empty {padding:40px;text-align:center;color:var(--text-muted)}.step {padding:8px 12px;border-radius:6px;background:var(--surface-low)}
 @media(max-width:768px) {.sidebar{display:flex;width:220px}.main-content{margin-left:0}.sidebar{box-shadow:5px 0 20px #0004}[data-sidebar="closed"] .sidebar{display:none}[data-sidebar="closed"] .main-content{margin-left:0}.page{padding:16px}.topbar{padding:0 12px}.topbar span{max-width:120px;overflow:hidden}}
 
@@ -525,3 +536,24 @@ pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:450px;overflow:auto;
 /* Solid brand actions use the same greens in both themes. */
 .btn-primary, .button:not(.button--ghost):not(.button--danger):not(.button--outline), .sidebar__new-btn { background: var(--brand-green); border-color: var(--brand-green); color: #fff; }
 .btn-primary:hover, .button:not(.button--ghost):not(.button--danger):not(.button--outline):hover, .sidebar__new-btn:hover { background: var(--brand-green-deep); border-color: var(--brand-green-deep); color: #fff; }
+
+/* Reusable check definitions */
+.section-tabs { display: flex; gap: 4px; margin: 0 0 24px; padding: 4px; width: fit-content; border: 1px solid var(--surface-border); border-radius: 10px; background: var(--surface-low); }
+.section-tabs__item { padding: 8px 14px; border-radius: 7px; color: var(--text-muted); font-size: 13px; font-weight: 600; text-decoration: none; }
+.section-tabs__item:hover { color: var(--text); background: var(--surface-container); text-decoration: none; }
+.section-tabs__item.is-active { color: #fff; background: var(--brand-green); }
+.assignment-chip { display: inline-flex; margin: 0 6px 6px 0; padding: 4px 8px; border-radius: 999px; background: var(--success-soft); color: var(--success-text); font-size: 12px; }
+.assignment-chip.is-disabled { background: var(--surface-container); color: var(--text-muted); text-decoration: line-through; }
+.definition-form section { padding: 20px 0; }
+.definition-form section + section { border-top: 1px solid var(--surface-border); }
+.json-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.json-fields textarea { min-height: 210px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.5; resize: vertical; }
+.assignment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.assignment-card { padding: 14px; border: 1px solid var(--surface-border); border-radius: 10px; background: var(--surface-low); opacity: .72; }
+.assignment-card.is-selected { border-color: var(--primary); background: var(--primary-soft); opacity: 1; }
+.assignment-card__title { display: flex; align-items: center; gap: 9px; margin: 0; color: var(--text); font-weight: 700; }
+.assignment-card__settings { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 14px; }
+.assignment-card__settings label { margin: 0; }
+.assignment-card__enabled { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.field-error { display: block; margin-top: 5px; color: var(--danger-text); font-size: 12px; }
+@media (max-width: 768px) { .json-fields { grid-template-columns: 1fr; } .section-tabs { width: 100%; } .section-tabs__item { flex: 1; text-align: center; } }

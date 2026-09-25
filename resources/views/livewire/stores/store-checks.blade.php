@@ -1,4 +1,5 @@
 <div wire:poll.5s>
+<nav class="section-tabs" aria-label="Versões das verificações"><a wire:navigate href="{{ route('stores.checks') }}" class="section-tabs__item is-active" aria-current="page">Verificações</a><a wire:navigate href="{{ route('stores.check-definitions') }}" class="section-tabs__item">Verificações 2</a></nav>
 <div class="page-header"><div><h2>Verificações</h2><p>Saúde operacional, histórico e alertas.</p></div>@can('manage')<button class="btn btn-primary" wire:click="create">Nova verificação</button>@endcan</div>
 @foreach($errors->all() as $error)<p class="error">{{ $error }}</p>@endforeach
 <div class="toolbar"><label>Buscar<input wire:model.live.debounce.300ms="search"></label><label>Loja<select wire:model.live="storeId"><option value="">Todas</option>@foreach($stores as $s)<option value="{{ $s->id }}">{{ $s->name }}</option>@endforeach</select></label><label>Nível<select wire:model.live="levelFilter"><option value="">Todos</option>@foreach(['SERVER','APP','API','SITE'] as $v)<option>{{ $v }}</option>@endforeach</select></label></div>

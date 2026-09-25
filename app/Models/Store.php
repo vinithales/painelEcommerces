@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use InvalidArgumentException;
 
 class Store extends Model
@@ -107,5 +108,10 @@ class Store extends Model
     public function integrationCredentials(): array
     {
         return $this->integration()?->credentials() ?? [];
+    }
+
+    public function checkAssignments(): HasMany
+    {
+        return $this->hasMany(CheckAssignment::class);
     }
 }

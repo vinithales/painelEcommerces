@@ -11,6 +11,7 @@
         'stores.diagnostics' => 'Diagnóstico',
         'stores.tools' => 'Ferramentas',
         'stores.checks' => 'Verificações',
+        'stores.check-definitions' => 'Verificações 2',
         'stores.bulk-templates' => 'Modelos de edição',
         'login' => 'Entrar',
         default => $title ?? 'Operação',

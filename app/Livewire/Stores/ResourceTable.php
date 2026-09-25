@@ -128,7 +128,7 @@ abstract class ResourceTable extends Component
         try {
             $this->acceptDetail($this->service()->get($this->store, $key)['data']);
         } catch (\Throwable $e) {
-            $this->addError('api', Redactor::clean($e->getMessage()));
+            $this->closeDetailWithError('api', $e);
         }
     }
 
@@ -178,7 +178,7 @@ abstract class ResourceTable extends Component
         try {
             $this->previews = [app(UpdateProductAction::class)->execute($this->store, $this->selectedKey, $this->changes(), true)];
         } catch (\Throwable $e) {
-            $this->addError('edit', Redactor::clean($e->getMessage()));
+            $this->closeDetailWithError('edit', $e);
         }
     }
 
@@ -207,8 +207,20 @@ abstract class ResourceTable extends Component
             $this->dispatch('resource-row-updated', row: array_diff_key($this->detail, array_flip(['raw', 'description', 'short_description', 'gallery', 'attributes', 'variations', 'categories', 'items', 'shipping_address'])));
             $this->detailMessage = 'Alteração aplicada e dados atualizados pela plataforma.';
         } catch (\Throwable $e) {
-            $this->addError('edit', Redactor::clean($e->getMessage()));
+            $this->closeDetailWithError('edit', $e);
         }
+    }
+
+    private function closeDetailWithError(string $field, \Throwable $error): void
+    {
+        $this->selectedKey = null;
+        $this->detail = [];
+        $this->draft = [];
+        $this->initialDraft = [];
+        $this->detailMessage = null;
+        $this->previews = [];
+        $this->dispatch('edits-saved');
+        $this->addError($field, Redactor::clean($error->getMessage()));
     }
 
     public function queueChange(string $id, string $field, mixed $value): void
@@ -304,7 +316,7 @@ abstract class ResourceTable extends Component
 
         return view('livewire.stores.resource-table', [
             'resource' => $resource,
-            'editableFields' => $resource === 'product' ? ProductFields::rules($this->store) : [],
+            'editableFields' => $resource === 'product' ? array_diff_key(ProductFields::rules($this->store), ['images' => true]) : [],
             'templates' => BulkEditTemplate::where('resource_type', $resource)->where(fn ($q) => $q->whereNull('store_id')->orWhere('store_id', $this->store->id))->orderBy('name')->get(),
             'snapshots' => $resource === 'product' ? ProductSnapshot::where('store_id', $this->store->id)->whereNotNull('data_after')->whereNull('reverted_at')->latest()->limit(20)->get() : collect(),
             'history' => $this->selectedKey ? ApiOperationLog::where('store_id', $this->store->id)->where('resource_type', $resource)->where('resource_id', $this->selectedKey)->latest()->limit(15)->get() : collect(),

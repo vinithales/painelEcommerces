@@ -11,9 +11,20 @@ class ResourceDetails
         foreach ($r['custom_attributes'] ?? [] as $a) {
             $attrs[$a['attribute_code']] = $a['value'] ?? null;
         }
-        $images = $m ? array_map(fn ($i) => ['src' => rtrim($url, '/').'/media/catalog/product/'.ltrim($i['file'] ?? '', '/'), 'alt' => $i['label'] ?? ''], $r['media_gallery_entries'] ?? []) : ($r['images'] ?? []);
+        $images = self::productImages($r, $m, $url);
         if ($m && ! $images && ! empty($attrs['image']) && $attrs['image'] !== 'no_selection') {
-            $images = [['src' => rtrim($url, '/').'/media/catalog/product/'.ltrim($attrs['image'], '/'), 'alt' => $r['name'] ?? '']];
+            $images = [[
+                'id' => null,
+                'src' => self::safeUrl(rtrim($url, '/').'/media/catalog/product/'.ltrim($attrs['image'], '/')),
+                'alt' => $r['name'] ?? '',
+                'name' => basename((string) $attrs['image']),
+                'position' => 1,
+                'disabled' => false,
+                'types' => ['image'],
+                'media_type' => 'image',
+                'file' => $attrs['image'],
+                'date_created' => null,
+            ]];
         }
         $link = $m ? (isset($r['id']) ? rtrim($url, '/').'/catalog/product/view/id/'.rawurlencode((string) $r['id']) : null) : ($r['permalink'] ?? null);
 
@@ -27,8 +38,43 @@ class ResourceDetails
             'stock_status' => $m ? ($r['extension_attributes']['stock_item']['is_in_stock'] ?? null) : ($r['stock_status'] ?? null),
             'dimensions' => $r['dimensions'] ?? null, 'categories' => $r['categories'] ?? $attrs['category_ids'] ?? [],
             'attributes' => $r['attributes'] ?? $attrs, 'variations' => $r['variations'] ?? $r['extension_attributes']['configurable_product_links'] ?? [],
-            'gallery' => array_map(fn ($i) => ['src' => self::safeUrl($i['src'] ?? null), 'alt' => $i['alt'] ?? ''], $images),
+            'gallery' => $images,
         ];
+    }
+
+    private static function productImages(array $product, bool $magento, string $storeUrl): array
+    {
+        if ($magento) {
+            return array_values(array_map(function (array $image, int $index) use ($storeUrl): array {
+                $file = (string) ($image['file'] ?? '');
+
+                return [
+                    'id' => isset($image['id']) ? (int) $image['id'] : null,
+                    'src' => self::safeUrl($file !== '' ? rtrim($storeUrl, '/').'/media/catalog/product/'.ltrim($file, '/') : null),
+                    'alt' => (string) ($image['label'] ?? ''),
+                    'name' => basename($file),
+                    'position' => (int) ($image['position'] ?? $index + 1),
+                    'disabled' => (bool) ($image['disabled'] ?? false),
+                    'types' => array_values($image['types'] ?? []),
+                    'media_type' => (string) ($image['media_type'] ?? 'image'),
+                    'file' => $file,
+                    'date_created' => null,
+                ];
+            }, $product['media_gallery_entries'] ?? [], array_keys($product['media_gallery_entries'] ?? [])));
+        }
+
+        return array_values(array_map(fn (array $image, int $index): array => [
+            'id' => isset($image['id']) ? (int) $image['id'] : null,
+            'src' => self::safeUrl($image['src'] ?? null),
+            'alt' => (string) ($image['alt'] ?? ''),
+            'name' => (string) ($image['name'] ?? $image['title'] ?? ''),
+            'position' => $index,
+            'disabled' => false,
+            'types' => $index === 0 ? ['featured'] : [],
+            'media_type' => 'image',
+            'file' => null,
+            'date_created' => $image['date_created'] ?? null,
+        ], $product['images'] ?? [], array_keys($product['images'] ?? [])));
     }
 
     public static function order(array $r, string $platform): array

@@ -6,6 +6,7 @@ use App\Models\CheckAssignment;
 use App\Models\CheckDefinition;
 use App\Models\CheckExecution;
 use App\Models\Store;
+use App\Services\Checks\CheckExecutionService;
 use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -39,6 +40,34 @@ class CheckExecutionTest extends TestCase
         $this->assertInstanceOf(CarbonInterface::class, $execution->finished_at);
         $this->assertTrue($execution->started_at->equalTo($startedAt));
         $this->assertTrue($execution->finished_at->equalTo($finishedAt));
+    }
+
+    public function test_it_creates_a_running_execution_for_an_existing_store(): void
+    {
+        $assignment = $this->createAssignment();
+
+        $execution = app(CheckExecutionService::class)->run($assignment);
+
+        $this->assertInstanceOf(CheckExecution::class, $execution);
+        $this->assertSame('running', $execution->status);
+        $this->assertNotNull($execution->started_at);
+        $this->assertSame([
+            'name' => 'Disponibilidade da loja',
+            'level' => 'SITE',
+            'executor_type' => 'http',
+            'configuration' => ['url' => 'https://example.com'],
+            'assertions' => ['status_code' => 200],
+        ], $execution->definition_snapshot);
+        $this->assertDatabaseHas('check_executions', [
+            'id' => $execution->id,
+            'check_assignment_id' => $assignment->id,
+        ]);
+    }
+
+    public function test_it_does_not_create_an_execution_without_an_assignment(): void
+    {
+        $this->assertNull(app(CheckExecutionService::class)->run(null));
+        $this->assertDatabaseCount('check_executions', 0);
     }
 
     private function createAssignment(): CheckAssignment

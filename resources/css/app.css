@@ -222,6 +222,24 @@ button, input, select, textarea { font: inherit; }
 .check-badge--fail, .check-badge--error { background: var(--danger-soft); color: var(--danger-text); }
 .check-badge--pending { background: var(--surface-container); color: var(--text-muted); }
 
+/* Verification history */
+.check-history__count { align-self: center; padding: 6px 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-full); color: var(--text-muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.check-history__table { min-width: 720px; }
+.check-history__table td { vertical-align: middle; }
+.check-history__row--success td:first-child { box-shadow: inset 3px 0 var(--success); }
+.check-history__row--fail td:first-child { box-shadow: inset 3px 0 var(--danger); }
+.check-history__name { color: var(--text); font-size: 13px; font-weight: 650; }
+.check-history__time { display: flex; flex-direction: column; gap: 2px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.check-history__time small, .check-history__muted { color: var(--text-muted); font-size: 12px; }
+.check-history__status { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: var(--radius-full); font-size: 12px; font-weight: 650; line-height: 1.2; white-space: nowrap; }
+.check-history__status::before { content: ''; width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: currentColor; }
+.check-history__status--pending, .check-history__status--completed { background: var(--surface-container); color: var(--text-muted); }
+.check-history__status--running { background: var(--primary-soft); color: var(--primary); }
+.check-history__status--success { background: var(--success-soft); color: var(--success-text); }
+.check-history__status--fail { background: var(--danger-soft); color: var(--danger-text); }
+.check-history__error { display: block; max-width: 340px; color: var(--danger-text); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.check-history__empty { padding: 36px 20px !important; color: var(--text-muted) !important; text-align: center; }
+
 /* ── Flash ───────────────────────────────────────────────────── */
 .flash { padding: 12px 16px; border-radius: var(--radius-lg); margin-bottom: 16px; font-size: 13px; font-weight: 500; background: var(--success-soft); color: var(--success-text); border: 1px solid var(--success); }
 .flash--error   { background: var(--danger-soft); color: var(--danger-text); border-color: var(--danger); }

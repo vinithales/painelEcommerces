@@ -4,8 +4,11 @@ namespace App\Livewire\Stores;
 
 use App\Actions\Checks\CheckDefinitionValidator;
 use App\Models\CheckDefinition;
+use App\Models\CheckAssignment;
+use App\Models\CheckExecution;
 use App\Models\Store;
 use App\Services\Checks\CheckDefinitionService;
+use App\Jobs\RunCheckAssignmentJob;
 use JsonException;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -38,6 +41,159 @@ class CheckDefinitions extends Component
 
     public array $storeAssignments = [];
 
+    #[Locked]
+    public ?int $executionDefinitionId = null;
+
+    public string $executionScope = 'all';
+
+    public ?int $executionAssignmentId = null;
+
+    public array $executionAssignmentIds = [];
+
+    #[Locked]
+    public array $executionIds = [];
+
+    #[Locked]
+    public array $executionProgress = [];
+
+    #[Locked]
+    public bool $executionStarted = false;
+
+    #[Locked]
+    public ?string $executionStatus = null;
+
+    public function openExecution(int $id): void
+    {
+        Gate::authorize('operate');
+        $definition = CheckDefinition::with('assignments')->findOrFail($id);
+        $this->closeForm();
+        $this->resetExecution();
+        $this->executionStatus = null;
+        $this->executionDefinitionId = $definition->id;
+        $this->executionScope = $definition->assignments->where('enabled', true)->count() === 1 ? 'single' : 'all';
+        $this->executionAssignmentId = $definition->assignments->firstWhere('enabled', true)?->id;
+    }
+
+    public function closeExecution(): void
+    {
+        $this->executionDefinitionId = null;
+        $this->executionAssignmentId = null;
+        $this->executionScope = 'all';
+        $this->resetExecution();
+        $this->resetErrorBag();
+    }
+
+    private function resetExecution(): void
+    {
+        $this->executionAssignmentIds = [];
+        $this->executionIds = [];
+        $this->executionProgress = [];
+        $this->executionStarted = false;
+    }
+
+    public function executeSelected(): void
+    {
+        Gate::authorize('operate');
+        if ($this->executionStarted) {
+            return;
+        }
+        abort_if($this->executionDefinitionId === null, 404);
+        $definition = CheckDefinition::findOrFail($this->executionDefinitionId);
+        $this->validate(['executionScope' => 'required|in:all,single,group']);
+
+        if ($definition->executor_type !== 'http') {
+            throw ValidationException::withMessages(['executionScope' => 'Execução imediata disponível apenas para verificações HTTP.']);
+        }
+
+        $assignments = $definition->assignments()->with(['store', 'checkDefinition'])->where('enabled', true);
+
+        if ($this->executionScope === 'single') {
+            $this->validate(['executionAssignmentId' => 'required|integer']);
+            if (! (clone $assignments)->whereKey($this->executionAssignmentId)->exists()) {
+                throw ValidationException::withMessages(['executionAssignmentId' => 'Selecione uma loja habilitada desta verificação.']);
+            }
+            $assignments->whereKey($this->executionAssignmentId);
+        } elseif ($this->executionScope === 'group') {
+            $this->validate([
+                'executionAssignmentIds' => 'required|array|min:1',
+                'executionAssignmentIds.*' => 'required|integer|distinct',
+            ], ['executionAssignmentIds.required' => 'Selecione pelo menos uma loja.']);
+            $selectedIds = array_map('intval', $this->executionAssignmentIds);
+            $assignments->whereKey($selectedIds);
+            if ((clone $assignments)->count() !== count($selectedIds)) {
+                throw ValidationException::withMessages(['executionAssignmentIds' => 'Selecione apenas lojas habilitadas desta verificação.']);
+            }
+        }
+
+        $selected = $assignments->get();
+        if ($selected->isEmpty()) {
+            throw ValidationException::withMessages(['executionScope' => 'Nenhuma loja habilitada para executar esta verificação.']);
+        }
+
+        $this->executionStarted = true;
+        foreach ($selected as $assignment) {
+            $this->enqueueAssignment($assignment);
+        }
+        $this->executionStatus = $this->executionScope === 'single'
+            ? 'Execução agendada para '.$selected->first()->store->name.'.'
+            : 'Execução agendada para '.$selected->count().($selected->count() === 1 ? ' loja habilitada.' : ' lojas habilitadas.');
+        if (collect($this->executionProgress)->contains('status', 'error')) {
+            $this->executionStatus = 'Uma ou mais execuções não puderam ser agendadas. Confira os detalhes no painel.';
+        }
+        $this->refreshExecutionProgress();
+    }
+
+    private function enqueueAssignment(CheckAssignment $assignment): void
+    {
+        $key = 'assignment-'.$assignment->id;
+        try {
+            $execution = $assignment->executions()->create([
+                'definition_snapshot' => $assignment->checkDefinition->only(['name', 'level', 'executor_type', 'configuration', 'assertions']),
+                'status' => 'pending',
+            ]);
+            $key = (string) $execution->id;
+            $this->executionIds[] = $execution->id;
+            $this->executionProgress[$key] = ['store' => $assignment->store->name, 'status' => 'pending', 'message' => null];
+            try {
+                RunCheckAssignmentJob::dispatch($assignment->id, $execution->id);
+            } catch (\Throwable $e) {
+                $execution->update(['status' => 'error', 'error_message' => 'Não foi possível enviar a execução para a fila.', 'finished_at' => now()]);
+                throw $e;
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            $this->executionProgress[$key] = [
+                'store' => $assignment->store->name,
+                'status' => 'error',
+                'message' => 'Não foi possível agendar a execução. Tente novamente.',
+            ];
+        }
+    }
+
+    public function refreshExecutionProgress(): void
+    {
+        Gate::authorize('operate');
+        if (! $this->executionStarted || $this->executionIds === []) {
+            return;
+        }
+        $executions = CheckExecution::whereIn('id', $this->executionIds)->get()->keyBy('id');
+        foreach ($this->executionIds as $id) {
+            $execution = $executions->get($id);
+            $status = $execution?->status ?? 'error';
+            $message = $execution?->error_message;
+            if (! $execution) {
+                $message = 'O registro desta execução não está mais disponível.';
+            } elseif ($status === 'completed') {
+                $status = in_array($execution->outcome, ['success', 'passed'], true) ? 'success' : 'failed';
+                if ($status === 'failed') {
+                    $message = 'Uma ou mais condições da verificação não foram atendidas.';
+                }
+            }
+            $this->executionProgress[(string) $id]['status'] = $status;
+            $this->executionProgress[(string) $id]['message'] = $message;
+        }
+    }
+
     public function boot(): void
     {
         Gate::authorize('operate');
@@ -52,6 +208,7 @@ class CheckDefinitions extends Component
     {
         Gate::authorize('manage');
         $this->resetForm();
+        $this->closeExecution();
         $this->loadStoreAssignments();
         $this->formOpen = true;
     }
@@ -59,6 +216,7 @@ class CheckDefinitions extends Component
     public function edit(int $id): void
     {
         Gate::authorize('manage');
+        $this->closeExecution();
         $definition = CheckDefinition::with('assignments')->findOrFail($id);
 
         $this->editingId = $definition->id;
@@ -101,6 +259,37 @@ class CheckDefinitions extends Component
         $this->editingId = $saved->id;
         $this->formOpen = false;
         session()->flash('status', 'Definição e associações salvas.');
+    }
+
+    public function delete(int $id): void
+    {
+        Gate::authorize('manage');
+        $definition = CheckDefinition::findOrFail($id);
+        $definition->delete();
+        session()->flash('status', 'Definição e associações removidas.');
+    }
+
+    public function runNow(int $id): void
+    {
+        Gate::authorize('operate');
+        $assignment = CheckAssignment::with(['checkDefinition', 'store'])->findOrFail($id);
+        if ($assignment->checkDefinition->executor_type !== 'http') {
+            session()->flash('status', 'Execução imediata apenas disponível para verificações HTTP.');
+            return;
+        }
+        if (! $assignment->enabled) {
+            session()->flash('status', 'Nenhuma verificação habilitada para execução imediata.');
+            return;
+        }
+
+        $this->executionStarted = true;
+        $this->enqueueAssignment($assignment);
+        $this->refreshExecutionProgress();
+        $this->executionStatus = 'Execução agendada para '.$assignment->store->name.'.';
+        if (collect($this->executionProgress)->contains('status', 'error')) {
+            $this->executionStatus = 'Não foi possível agendar a execução. Confira os detalhes no painel.';
+        }
+        session()->flash('status', $this->executionStatus);
     }
 
     private function resetForm(): void
@@ -174,6 +363,9 @@ class CheckDefinitions extends Component
 
         return view('livewire.stores.check-definitions', [
             'definitions' => $definitions,
+            'executionDefinition' => $this->executionDefinitionId
+                ? CheckDefinition::with('assignments.store')->find($this->executionDefinitionId)
+                : null,
             'stores' => Store::orderBy('name')->get(['id', 'name']),
             'levels' => CheckDefinitionValidator::LEVELS,
             'executorTypes' => CheckDefinitionValidator::EXECUTOR_TYPES,

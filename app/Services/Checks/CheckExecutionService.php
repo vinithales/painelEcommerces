@@ -16,7 +16,7 @@ class CheckExecutionService
     ) {
     }
 
-    public function run(CheckAssignment $assignment): ?CheckExecution
+    public function run(CheckAssignment $assignment, ?CheckExecution $execution = null): ?CheckExecution
     {
         $evaluations = [];
 
@@ -39,20 +39,22 @@ class CheckExecutionService
             throw new \InvalidArgumentException("Executor type não suportado: {$definition->executor_type}");
         }
 
-        $execution = null;
-
         try {
-            $execution = $assignment->executions()->create([
-                'definition_snapshot' => $definition->only([
-                    'name',
-                    'level',
-                    'executor_type',
-                    'configuration',
-                    'assertions',
-                ]),
-                'status' => 'running',
-                'started_at' => now(),
-            ]);
+            if ($execution) {
+                $execution->update(['status' => 'running', 'started_at' => now()]);
+            } else {
+                $execution = $assignment->executions()->create([
+                    'definition_snapshot' => $definition->only([
+                        'name',
+                        'level',
+                        'executor_type',
+                        'configuration',
+                        'assertions',
+                    ]),
+                    'status' => 'running',
+                    'started_at' => now(),
+                ]);
+            }
 
             $assertions = $execution->definition_snapshot['assertions'] ?? null;
 

@@ -20,6 +20,10 @@
         </label>
     </div>
 
+    @if($executionStatus)
+        <div class="flash" role="status">{{ $executionStatus }}</div>
+    @endif
+
     <div class="card table-wrap">
         <table class="data-table">
             <thead>
@@ -28,7 +32,7 @@
                     <th>Nível</th>
                     <th>Executor</th>
                     <th>Lojas associadas</th>
-                    @can('manage')<th>Ações</th>@endcan
+                    <th>Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -41,17 +45,31 @@
                         <td><span class="badge">{{ $definition->level }}</span></td>
                         <td>{{ $definition->executor_type }}</td>
                         <td>
-                            @forelse($definition->assignments as $assignment)
-                                <span class="assignment-chip {{ $assignment->enabled ? '' : 'is-disabled' }}">
-                                    {{ $assignment->store->name }} · {{ $assignment->interval_minutes }} min
-                                </span>
-                            @empty
-                                <span class="muted">Nenhuma loja</span>
-                            @endforelse
+                            <div class="definition-stores">
+                                @forelse($definition->assignments as $assignment)
+                                    <span class="assignment-chip {{ $assignment->enabled ? '' : 'is-disabled' }}">
+                                        {{ $assignment->store->name }} · {{ $assignment->interval_minutes }} min
+                                        @if(!$assignment->enabled)<span class="assignment-chip__state">Desabilitada</span>@endif
+                                    </span>
+                                @empty
+                                    <span class="muted">Nenhuma loja</span>
+                                @endforelse
+                            </div>
                         </td>
-                        @can('manage')
-                            <td><button type="button" class="btn btn-secondary" wire:click="edit({{ $definition->id }})">Editar e associar</button></td>
-                        @endcan
+                        <td>
+                            <div class="definition-actions">
+                                @php $canExecute = $definition->executor_type === 'http' && $definition->assignments->contains('enabled', true); @endphp
+                                <button type="button" class="btn btn-secondary definition-run" wire:click="openExecution({{ $definition->id }})" wire:loading.attr="disabled" wire:target="openExecution" @disabled(!$canExecute) aria-label="Executar {{ $definition->name }}" aria-haspopup="dialog">
+                                    <x-icon name="play" width="16" height="16"/> Executar
+                                </button>
+                                @can('manage')
+                                    <button type="button" class="btn btn-secondary" wire:click="edit({{ $definition->id }})">Editar e associar</button>
+                                @endcan
+                            </div>
+                            @if(!$canExecute)
+                                <p class="definition-actions__hint">{{ $definition->executor_type !== 'http' ? 'Execução disponível para HTTP' : 'Nenhuma loja habilitada' }}</p>
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr><td colspan="5" class="empty">Nenhuma definição cadastrada.</td></tr>
@@ -61,6 +79,10 @@
     </div>
 
     {{ $definitions->links() }}
+
+    @if($executionDefinition)
+        <x-checks.execution-dialog :definition="$executionDefinition" :scope="$executionScope" :assignment-id="$executionAssignmentId" :assignment-ids="$executionAssignmentIds" :progress="$executionProgress" :started="$executionStarted"/>
+    @endif
 
     @if($formOpen)
         <div class="drawer-backdrop" wire:click="closeForm"></div>

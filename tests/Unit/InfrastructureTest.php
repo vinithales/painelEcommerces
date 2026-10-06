@@ -2,8 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Services\Checks\CheckConfiguration;
-use App\Services\Checks\MagentoCronCheck;
+use App\Services\Infrastructure\MagentoCronEvaluator;
 use App\Support\Redactor;
 use BringAgent\LogReader;
 use Tests\TestCase;
@@ -12,13 +11,13 @@ class InfrastructureTest extends TestCase
 {
     public function test_cron_requires_recent_execution_and_detects_stuck_jobs(): void
     {
-        $checker = app(MagentoCronCheck::class);
-        $config = CheckConfiguration::defaults('MAGENTO_CRON');
+        $checker = app(MagentoCronEvaluator::class);
+        $config = MagentoCronEvaluator::DEFAULTS;
         $metrics = ['last_execution' => now()->toDateTimeString(), 'pending' => 1, 'missed' => 0, 'error' => 0, 'stuck_running' => 0, 'overdue' => 0];
-        $this->assertSame('OK', $checker->evaluate($metrics, $config)->status);
-        $this->assertSame('CRITICAL', $checker->evaluate(array_replace($metrics, ['last_execution' => now()->subHour()->toDateTimeString()]), $config)->status);
-        $this->assertSame('CRITICAL', $checker->evaluate(array_replace($metrics, ['stuck_running' => 1]), $config)->status);
-        $this->assertSame('CRITICAL', $checker->evaluate(array_replace($metrics, ['pending' => 101]), $config)->status);
+        $this->assertSame('OK', $checker->evaluate($metrics, $config)['status']);
+        $this->assertSame('CRITICAL', $checker->evaluate(array_replace($metrics, ['last_execution' => now()->subHour()->toDateTimeString()]), $config)['status']);
+        $this->assertSame('CRITICAL', $checker->evaluate(array_replace($metrics, ['stuck_running' => 1]), $config)['status']);
+        $this->assertSame('CRITICAL', $checker->evaluate(array_replace($metrics, ['pending' => 101]), $config)['status']);
     }
 
     public function test_log_allowlist_bounds_cursor_and_redaction(): void

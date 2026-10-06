@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class CheckAssignment extends Model
 {
@@ -34,6 +35,20 @@ class CheckAssignment extends Model
     public function executions()
     {
         return $this->hasMany(CheckExecution::class);
+    }
+
+    public function latestExecution(): HasOne
+    {
+        return $this->hasOne(CheckExecution::class)->latestOfMany();
+    }
+
+    public function healthStatus(): string
+    {
+        return match (true) {
+            $this->latestExecution?->status === 'error', $this->latestExecution?->outcome === 'failed' => 'CRITICAL',
+            $this->latestExecution?->outcome === 'success' => 'OK',
+            default => 'UNKNOWN',
+        };
     }
 
 }

@@ -17,10 +17,14 @@ class StoreOverview extends Component
 
     public function render()
     {
-        $checks = $this->store->checks()->get();
+        $checks = $this->store->checkAssignments()
+            ->with(['checkDefinition', 'latestExecution'])
+            ->get();
         $levels = [];
         foreach (['API', 'SITE', 'APP', 'SERVER'] as $level) {
-            $statuses = $checks->where('enabled', true)->where('level', $level)->pluck('last_status');
+            $statuses = $checks->where('enabled', true)
+                ->filter(fn ($check) => $check->checkDefinition?->level === $level)
+                ->map(fn ($check) => $check->healthStatus());
             $levels[$level] = $statuses->contains('CRITICAL') ? 'CRITICAL' : ($statuses->contains('WARNING') ? 'WARNING' : ($statuses->isEmpty() || $statuses->contains('UNKNOWN') ? 'UNKNOWN' : 'OK'));
         }
 

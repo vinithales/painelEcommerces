@@ -51,28 +51,15 @@ Edi??o em massa aceita at? 100 itens, templates e jobs com autoriza??o do operad
 
 Limites de APIs: filtro de prefixo WooCommerce refina a p?gina remota atual e mant?m a contagem remota; e-mail usa a busca do WooCommerce. N?mero de pedido WooCommerce usa ID interno. Moeda, tracking, dimens?es ou outros campos ausentes s?o apresentados como n?o informados.
 
-## Verifica??es e alertas
+## Verificação
 
-Checks s?o classificados como SERVER, APP, API ou SITE. Tipos: HTTP_STATUS, CONTENT, META_ROBOTS, ROBOTS_TXT, SITEMAP_XML, MAINTENANCE, MAGENTO_CRON, API_HEALTH e RESPONSE_TIME.
+As verificações usam definições reutilizáveis (`check_definitions`), associações por loja (`check_assignments`) e histórico de execuções (`check_executions`).
 
-O wizard oferece condi??es, intervalos de 5 minutos a 24 horas, timeout, severidade, falhas consecutivas e recupera??o. Teste do wizard e execu??o manual s?o ass?ncronos. Hist?rico registra in?cio/fim, dura??o, estado, detalhes e m?tricas. O scheduler central seleciona vencidos com claim at?mico, token de execu??o e lock por check.
+O popup permite executar em todas as lojas habilitadas, em uma loja ou em um grupo selecionado. A execução começa após clicar em Executar. Jobs `RunCheckAssignmentJob` processam a fila e o popup acompanha os estados, resultados e erros de cada loja.
 
-Configure no .env:
+O executor disponível é HTTP. Cada execução registra uma cópia da definição, horário de início e fim, resultado das condições e eventuais erros. O cliente HTTP restringe destinos públicos, valida DNS e redirecionamentos e limita tamanho e duração das respostas.
 
-```dotenv
-QUEUE_CONNECTION=database
-OPERATIONS_QUEUE_CONNECTION=database
-CHECK_ALERT_RECIPIENTS=operacao@example.com
-```
-
-Configure tamb?m MAIL_*. No Docker local, e-mails chegam ao Mailpit. Destinat?rios vazios geram registro expl?cito de falha de configura??o; n?o h? destinat?rio impl?cito. Alertas suportam threshold, cooldown, aumento de severidade e recupera??o. Execu??es antigas s?o removidas ap?s 90 dias; alertas e auditoria permanecem armazenados.
-
-```bash
-php artisan checks:import-legacy
-php artisan checks:dispatch
-```
-
-A importa??o de checks legados ? idempotente. O runner mant?m o resultado legado compat?vel. O cliente de checks restringe destinos a HTTP/S p?blicos, valida DNS/redirects, verifica TLS e limita tamanho e dura??o. UNKNOWN distingue falha de execu??o de uma condi??o detectada no alvo.
+Configure `QUEUE_CONNECTION=database` e mantenha o worker ativo. O motor antigo, seu agendador, importador e alertas foram removidos. A migração `2026_10_06_000001_remove_legacy_store_checks` apaga definitivamente as tabelas legadas e os jobs e auditorias exclusivos desse sistema; os dados atuais são preservados.
 
 ## Suporte e infraestrutura
 
@@ -82,7 +69,7 @@ Consulte [implanta??o do agente](docs/agent-setup.md). Infraestrutura usa contra
 
 ## Arquitetura e migrations
 
-Fluxo: componente Livewire ? Action ? Service ? adapter por plataforma. Infraestrutura implementa ServerConnectionInterface; checks usam CheckStrategy, registry, dispatcher e runner. Suporte/checks executam em fila; edi??o individual usa Actions e lotes usam jobs.
+Fluxo: componente Livewire ? Action ? Service ? adapter por plataforma. Infraestrutura implementa ServerConnectionInterface; verificações usam CheckDefinitionService, CheckExecutionService e RunCheckAssignmentJob. Suporte/checks executam em fila; edi??o individual usa Actions e lotes usam jobs.
 
 Migrations adicionadas:
 

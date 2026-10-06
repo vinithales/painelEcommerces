@@ -10,11 +10,6 @@ use InvalidArgumentException;
 
 class Store extends Model
 {
-    public function checks()
-    {
-        return $this->hasMany(StoreCheck::class);
-    }
-
     public function serverConnection()
     {
         return $this->hasOne(ServerConnection::class);

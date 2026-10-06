@@ -3,8 +3,7 @@
 namespace App\Services\Operations;
 
 use App\Models\Store;
-use App\Services\Checks\CheckConfiguration;
-use App\Services\Checks\MagentoCronCheck;
+use App\Services\Infrastructure\MagentoCronEvaluator;
 use App\Services\Infrastructure\ServerConnectionFactory;
 use App\Services\PlatformApi\PlatformApiAdapterFactory;
 use App\Support\Redactor;
@@ -28,10 +27,9 @@ class SupportOperations
             if ($operation === 'server_status') {
                 return $server->status();
             }
-            $config = CheckConfiguration::defaults('MAGENTO_CRON');
-            $result = app(MagentoCronCheck::class)->evaluate($server->cron($config['running_minutes']), $config);
+            $config = MagentoCronEvaluator::DEFAULTS;
 
-            return ['status' => $result->status, 'summary' => $result->summary, 'metrics' => $result->metrics];
+            return app(MagentoCronEvaluator::class)->evaluate($server->cron($config['running_minutes']), $config);
         }
         if (! in_array($operation, self::API, true)) {
             throw new \InvalidArgumentException('Operação não autorizada.');

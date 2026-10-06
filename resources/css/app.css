@@ -538,10 +538,6 @@ pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:450px;overflow:auto;
 .btn-primary:hover, .button:not(.button--ghost):not(.button--danger):not(.button--outline):hover, .sidebar__new-btn:hover { background: var(--brand-green-deep); border-color: var(--brand-green-deep); color: #fff; }
 
 /* Reusable check definitions */
-.section-tabs { display: flex; gap: 4px; margin: 0 0 24px; padding: 4px; width: fit-content; border: 1px solid var(--surface-border); border-radius: 10px; background: var(--surface-low); }
-.section-tabs__item { padding: 8px 14px; border-radius: 7px; color: var(--text-muted); font-size: 13px; font-weight: 600; text-decoration: none; }
-.section-tabs__item:hover { color: var(--text); background: var(--surface-container); text-decoration: none; }
-.section-tabs__item.is-active { color: #fff; background: var(--brand-green); }
 .assignment-chip { display: inline-flex; margin: 0 6px 6px 0; padding: 4px 8px; border-radius: 999px; background: var(--success-soft); color: var(--success-text); font-size: 12px; }
 .assignment-chip.is-disabled { background: var(--surface-container); color: var(--text-muted); }
 .definition-stores { display: flex; flex-wrap: wrap; gap: 6px; max-width: 440px; }
@@ -629,4 +625,4 @@ pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:450px;overflow:auto;
 .assignment-card__settings label { margin: 0; }
 .assignment-card__enabled { display: flex; align-items: center; gap: 8px; color: var(--text); }
 .field-error { display: block; margin-top: 5px; color: var(--danger-text); font-size: 12px; }
-@media (max-width: 768px) { .json-fields { grid-template-columns: 1fr; } .section-tabs { width: 100%; } .section-tabs__item { flex: 1; text-align: center; } }
+@media (max-width: 768px) { .json-fields { grid-template-columns: 1fr; } }

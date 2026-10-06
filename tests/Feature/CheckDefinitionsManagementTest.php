@@ -139,9 +139,13 @@ class CheckDefinitionsManagementTest extends TestCase
         $operator = $this->user('n1');
 
         $this->actingAs($operator)
-            ->get(route('stores.check-definitions'))
+            ->get(route('stores.checks'))
             ->assertOk()
-            ->assertSee('Verificações 2');
+            ->assertSee('Verificação')
+            ->assertDontSee('Verificações 2')
+            ->assertSeeLivewire(CheckDefinitions::class);
+
+        $this->get(route('stores.check-definitions'))->assertRedirect(route('stores.checks'));
 
         Livewire::actingAs($operator)
             ->test(CheckDefinitions::class)
@@ -194,6 +198,39 @@ class CheckDefinitionsManagementTest extends TestCase
         }
 
         $this->assertDatabaseHas('check_assignments', ['id' => $assignment->id]);
+    }
+
+    public function test_store_links_filter_definitions_and_preselect_the_store_for_execution(): void
+    {
+        $firstStore = $this->store('Principal');
+        $selectedStore = $this->store('Selecionada');
+        $otherStore = $this->store('Outra');
+        $data = [
+            'name' => 'Disponibilidade da loja',
+            'level' => 'SITE',
+            'executor_type' => 'http',
+            'configuration' => ['path' => '/', 'method' => 'GET', 'timeout' => 10, 'follow_redirects' => false],
+            'assertions' => [['field' => 'status_code', 'operator' => 'equals', 'expected' => 200]],
+        ];
+        $service = app(CheckDefinitionService::class);
+        $definition = $service->save(null, $data, [
+            ['store_id' => $firstStore->id, 'interval_minutes' => 5, 'enabled' => true],
+            ['store_id' => $selectedStore->id, 'interval_minutes' => 5, 'enabled' => true],
+        ]);
+        $data['name'] = 'Definição de outra loja';
+        $service->save(null, $data, [['store_id' => $otherStore->id, 'interval_minutes' => 5, 'enabled' => true]]);
+
+        Livewire::actingAs($this->user('n1'))
+            ->withQueryParams(['storeId' => $selectedStore->id])
+            ->test(CheckDefinitions::class)
+            ->assertSee('Disponibilidade da loja')
+            ->assertDontSee('Definição de outra loja')
+            ->call('openExecution', $definition->id)
+            ->assertSet('executionScope', 'single')
+            ->assertSet('executionAssignmentId', $definition->assignments->firstWhere('store_id', $selectedStore->id)->id)
+            ->call('closeExecution')
+            ->set('storeId', null)
+            ->assertSee('Definição de outra loja');
     }
 
     private function store(string $name): Store

@@ -1,12 +1,7 @@
 <div>
-    <nav class="section-tabs" aria-label="Versões das verificações">
-        <a wire:navigate href="{{ route('stores.checks') }}" class="section-tabs__item">Verificações</a>
-        <a wire:navigate href="{{ route('stores.check-definitions') }}" class="section-tabs__item is-active" aria-current="page">Verificações 2</a>
-    </nav>
-
     <div class="page-header">
         <div>
-            <h2>Definições de verificação</h2>
+            <h2>Verificação</h2>
             <p>Crie uma regra reutilizável e associe-a às lojas que devem executá-la.</p>
         </div>
         @can('manage')
@@ -17,6 +12,12 @@
     <div class="toolbar">
         <label>Buscar
             <input type="search" wire:model.live.debounce.300ms="search" placeholder="Nome da definição">
+        </label>
+        <label>Loja
+            <select wire:model.live="storeId">
+                <option value="">Todas as lojas</option>
+                @foreach($stores as $store)<option value="{{ $store->id }}">{{ $store->name }}</option>@endforeach
+            </select>
         </label>
     </div>
 

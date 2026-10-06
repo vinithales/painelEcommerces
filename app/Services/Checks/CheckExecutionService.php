@@ -35,8 +35,12 @@ class CheckExecutionService
             return null;
         }
 
-        if (!in_array($definition->executor_type, ['http'], true)) {
-            throw new \InvalidArgumentException("Executor type não suportado: {$definition->executor_type}");
+        $executorType = $execution !== null
+            ? $execution->definition_snapshot['executor_type']
+            : $definition->executor_type;
+
+        if (!in_array($executorType, ['http'], true)) {
+            throw new \InvalidArgumentException("Executor type não suportado: {$executorType}");
         }
 
         try {

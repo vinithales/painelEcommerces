@@ -4,9 +4,8 @@ namespace Tests\Feature\Operations;
 
 use App\Jobs\RunCheckJob;
 use App\Jobs\SendCheckAlertJob;
-use App\Jobs\TestCheckJob;
 use App\Livewire\Stores\EditStore;
-use App\Livewire\Stores\StoreChecks;
+use App\Livewire\Stores\CheckDefinitions;
 use App\Livewire\Stores\StoreDiagnostics;
 use App\Mail\OperationalCheckAlert;
 use App\Models\AuditEvent;
@@ -69,7 +68,7 @@ class OperationsTest extends TestCase
         $this->get('/stores')->assertRedirect('/login');
         $store = $this->store();
         $this->actingAs($this->user('n1'))->get('/stores/'.$store->id.'/edit')->assertForbidden();
-        Livewire::actingAs(auth()->user())->test(StoreChecks::class)->call('create')->assertForbidden();
+        Livewire::actingAs(auth()->user())->test(CheckDefinitions::class)->call('create')->assertForbidden();
         Livewire::actingAs(auth()->user())->test(StoreDiagnostics::class, ['store' => $store])->call('saveConnection')->assertForbidden();
     }
 
@@ -80,16 +79,6 @@ class OperationsTest extends TestCase
         foreach (['/stores', '/stores/checks', '/stores/'.$store->id.'/products', '/stores/'.$store->id.'/orders', '/stores/'.$store->id.'/overview', '/stores/'.$store->id.'/diagnostics', '/stores/'.$store->id.'/tools'] as $url) {
             $this->get($url)->assertOk();
         }
-        Http::assertNothingSent();
-    }
-
-    public function test_wizard_saves_and_tests_asynchronously(): void
-    {
-        $store = $this->store();
-        Livewire::actingAs($this->user())->test(StoreChecks::class)
-            ->call('create')->set('name', 'Homepage')->set('targetStore', (string) $store->id)->call('testCheck')->assertHasNoErrors()->call('save')->assertHasNoErrors();
-        $this->assertDatabaseHas('store_checks', ['name' => 'Homepage', 'level' => 'SITE']);
-        Queue::assertPushed(TestCheckJob::class);
         Http::assertNothingSent();
     }
 

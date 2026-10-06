@@ -24,6 +24,9 @@ class CheckDefinitions extends Component
     #[Url]
     public string $search = '';
 
+    #[Url]
+    public ?int $storeId = null;
+
     public bool $formOpen = false;
 
     #[Locked]
@@ -70,8 +73,10 @@ class CheckDefinitions extends Component
         $this->resetExecution();
         $this->executionStatus = null;
         $this->executionDefinitionId = $definition->id;
-        $this->executionScope = $definition->assignments->where('enabled', true)->count() === 1 ? 'single' : 'all';
-        $this->executionAssignmentId = $definition->assignments->firstWhere('enabled', true)?->id;
+        $enabledAssignments = $definition->assignments->where('enabled', true);
+        $storeAssignment = $this->storeId ? $enabledAssignments->firstWhere('store_id', $this->storeId) : null;
+        $this->executionScope = $storeAssignment || $enabledAssignments->count() === 1 ? 'single' : 'all';
+        $this->executionAssignmentId = ($storeAssignment ?? $enabledAssignments->first())?->id;
     }
 
     public function closeExecution(): void
@@ -200,6 +205,11 @@ class CheckDefinitions extends Component
     }
 
     public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedStoreId(): void
     {
         $this->resetPage();
     }
@@ -358,6 +368,7 @@ class CheckDefinitions extends Component
             ->with(['assignments.store'])
             ->withCount('assignments')
             ->when($this->search, fn ($query) => $query->where('name', 'like', '%'.$this->search.'%'))
+            ->when($this->storeId, fn ($query) => $query->whereHas('assignments', fn ($assignment) => $assignment->where('store_id', $this->storeId)))
             ->latest()
             ->paginate(15);
 
@@ -369,6 +380,6 @@ class CheckDefinitions extends Component
             'stores' => Store::orderBy('name')->get(['id', 'name']),
             'levels' => CheckDefinitionValidator::LEVELS,
             'executorTypes' => CheckDefinitionValidator::EXECUTOR_TYPES,
-        ])->layout('layouts.app', ['title' => 'Verificações 2']);
+        ])->layout('layouts.app', ['title' => 'Verificação']);
     }
 }

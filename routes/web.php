@@ -3,6 +3,7 @@
 use App\Livewire\Login;
 use App\Livewire\Stores\BulkEditTemplates;
 use App\Livewire\Stores\CheckDefinitions;
+use App\Livewire\Stores\StoreCheckHistory;
 use App\Livewire\Stores\CreateStore;
 use App\Livewire\Stores\EditStore;
 use App\Livewire\Stores\IndexStores;
@@ -49,6 +50,7 @@ Route::middleware(['auth', 'can:operate'])->group(function () {
     Route::get('/stores/{store}/api-logs', StoreApiLogs::class)->name('stores.api-logs');
     Route::get('/stores/{store}/bulk-templates', BulkEditTemplates::class)->middleware('can:manage')->name('stores.bulk-templates');
     Route::get('/stores/{store}/overview', StoreOverview::class)->name('stores.overview');
+    Route::get('/stores/{store}/check-history', StoreCheckHistory::class)->name('stores.check-history');
     Route::get('/stores/{store}/tools', StoreTools::class)->name('stores.tools');
     Route::get('/stores/{store}/diagnostics', StoreDiagnostics::class)->name('stores.diagnostics');
 });

@@ -52,4 +52,48 @@ class StoreVerificationSummaryTest extends TestCase
             ->assertSee('Disponibilidade HTTP')
             ->assertSee('Falhas recentes');
     }
+
+    public function test_store_check_history_shows_empty_state_and_execution_details(): void
+    {
+        $store = Store::create([
+            'name' => 'Loja com histórico',
+            'platform' => Store::PLATFORM_WOOCOMMERCE,
+            'store_url' => 'https://example.com',
+        ]);
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+
+        $this->get(route('stores.overview', $store))
+            ->assertOk()
+            ->assertSee(route('stores.check-history', $store));
+
+        $this->get(route('stores.check-history', $store))
+            ->assertOk()
+            ->assertSee('Nenhuma execução de verificação encontrada.');
+
+        $definition = CheckDefinition::create([
+            'name' => 'Nome atual',
+            'level' => 'SITE',
+            'executor_type' => 'http',
+            'configuration' => ['path' => '/'],
+            'assertions' => [],
+        ]);
+        $assignment = CheckAssignment::create([
+            'check_definition_id' => $definition->id,
+            'store_id' => $store->id,
+            'interval_minutes' => 5,
+            'enabled' => true,
+        ]);
+        $assignment->executions()->create([
+            'definition_snapshot' => ['name' => 'Nome na execução'],
+            'status' => 'error',
+            'error_message' => 'Falha de conexão',
+        ]);
+
+        $this->get(route('stores.check-history', $store))
+            ->assertOk()
+            ->assertSee('Nome na execução')
+            ->assertSee('Aguardando')
+            ->assertSee('Falha de conexão')
+            ->assertDontSee('Nome atual');
+    }
 }

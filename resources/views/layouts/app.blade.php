@@ -17,7 +17,7 @@
 @foreach(['overview'=>'Visão geral','products'=>'Produtos','orders'=>'Pedidos','api-logs'=>'Logs de API','diagnostics'=>'Diagnóstico','tools'=>'Ferramentas'] as $path=>$label)
 <a wire:navigate href="{{ route('stores.'.$path,$store) }}" class="sidebar__link" title="{{ $label }}"><x-icon :name="$path"/><span>{{ $label }}</span></a>
 @endforeach
-<a wire:navigate href="{{ route('stores.checks',['storeId'=>$store->id]) }}" class="sidebar__link"><x-icon name="check"/><span>Verificação da loja</span></a>
+<a wire:navigate href="{{ route('stores.check-history', $store) }}" class="sidebar__link" title="Histórico de verificações"><x-icon name="check"/><span>Histórico de verificações</span></a>
 @can('configure')<a wire:navigate href="{{ route('stores.edit',$store) }}" class="sidebar__link"><x-icon name="settings"/><span>Configurações</span></a>@endcan
 @endif
 </nav></aside>

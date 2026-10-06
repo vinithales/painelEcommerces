@@ -109,4 +109,10 @@ class Store extends Model
     {
         return $this->hasMany(CheckAssignment::class);
     }
+
+    public function checkExecutions()
+    {
+        return $this->hasManyThrough(CheckExecution::class, CheckAssignment::class);
+    }
+
 }

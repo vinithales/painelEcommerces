@@ -5,6 +5,7 @@ use App\Livewire\Stores\BulkEditTemplates;
 use App\Livewire\Stores\CheckDefinitions;
 use App\Livewire\Stores\StoreCheckHistory;
 use App\Livewire\Stores\CreateStore;
+use App\Livewire\Stores\CreateStoreProduct;
 use App\Livewire\Stores\EditStore;
 use App\Livewire\Stores\IndexStores;
 use App\Livewire\Stores\StoreApiLogs;
@@ -46,6 +47,7 @@ Route::middleware(['auth', 'can:operate'])->group(function () {
     Route::get('/stores/checks', CheckDefinitions::class)->name('stores.checks');
     Route::redirect('/stores/check-definitions', '/stores/checks')->name('stores.check-definitions');
     Route::get('/stores/{store}/products', StoreProducts::class)->name('stores.products');
+    Route::get('/stores/{store}/products/create', CreateStoreProduct::class)->middleware('can:manage')->name('stores.products.create');
     Route::get('/stores/{store}/orders', StoreOrders::class)->name('stores.orders');
     Route::get('/stores/{store}/api-logs', StoreApiLogs::class)->name('stores.api-logs');
     Route::get('/stores/{store}/bulk-templates', BulkEditTemplates::class)->middleware('can:manage')->name('stores.bulk-templates');

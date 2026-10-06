@@ -24,6 +24,9 @@ interface PlatformApiAdapter
      */
     public function getProduct(string $id): array;
 
+    /** Create a simple product and attach its images. */
+    public function createProduct(array $attributes, array $images = []): array;
+
     /**
      * Update a product by its platform ID.
      *

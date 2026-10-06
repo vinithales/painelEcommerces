@@ -17,6 +17,7 @@
                         <th>Estado</th>
                         <th>Conclusão</th>
                         <th>Mensagem de erro</th>
+                        <th class="table-actions">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -55,10 +56,21 @@
                                     <span class="check-history__muted">—</span>
                                 @endif
                             </td>
+                            <td class="table-actions">
+                                <button
+                                    type="button"
+                                    class="button button--small button--ghost"
+                                    wire:click="openDetails({{ $execution->id }})"
+                                    wire:loading.attr="disabled"
+                                    wire:target="openDetails({{ $execution->id }})"
+                                    aria-haspopup="dialog"
+                                    aria-label="Detalhes da execução de {{ ($execution->definition_snapshot['name'] ?? null) ?: 'verificação sem nome' }}"
+                                >Detalhes</button>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="check-history__empty">Nenhuma execução de verificação encontrada.</td>
+                            <td colspan="6" class="check-history__empty">Nenhuma execução de verificação encontrada.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -67,4 +79,8 @@
 
         {{ $executions->links() }}
     </div>
+
+    @if ($selectedExecution)
+        <x-checks.execution-history-details :execution="$selectedExecution" :store="$store" />
+    @endif
 </div>

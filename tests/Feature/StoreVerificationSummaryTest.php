@@ -6,7 +6,10 @@ use App\Models\CheckAssignment;
 use App\Models\CheckDefinition;
 use App\Models\Store;
 use App\Models\User;
+use App\Livewire\Stores\StoreCheckHistory;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class StoreVerificationSummaryTest extends TestCase
@@ -95,5 +98,45 @@ class StoreVerificationSummaryTest extends TestCase
             ->assertSee('Aguardando')
             ->assertSee('Falha de conexão')
             ->assertDontSee('Nome atual');
+    }
+
+    public function test_history_details_show_saved_results_and_reject_another_stores_execution(): void
+    {
+        $store = Store::create(['name' => 'Loja A', 'platform' => Store::PLATFORM_WOOCOMMERCE, 'store_url' => 'https://a.example.com']);
+        $otherStore = Store::create(['name' => 'Loja B', 'platform' => Store::PLATFORM_WOOCOMMERCE, 'store_url' => 'https://b.example.com']);
+        $definition = CheckDefinition::create([
+            'name' => 'Disponibilidade',
+            'level' => 'SITE',
+            'executor_type' => 'http',
+            'configuration' => ['path' => '/'],
+            'assertions' => [],
+        ]);
+        $assignment = CheckAssignment::create(['check_definition_id' => $definition->id, 'store_id' => $store->id, 'interval_minutes' => 5, 'enabled' => true]);
+        $otherAssignment = CheckAssignment::create(['check_definition_id' => $definition->id, 'store_id' => $otherStore->id, 'interval_minutes' => 5, 'enabled' => true]);
+        $execution = $assignment->executions()->create([
+            'definition_snapshot' => ['name' => 'Nome histórico', 'level' => 'SITE', 'executor_type' => 'http'],
+            'status' => 'completed',
+            'outcome' => 'failed',
+            'result' => [
+                'observed' => ['status_code' => 503, 'response_time' => 120, 'url' => 'https://a.example.com/', 'body' => '<h1>Indisponível</h1>'],
+                'assertions' => [['field' => 'status_code', 'expected' => 200, 'actual' => 503, 'passed' => false]],
+            ],
+        ]);
+        $otherExecution = $otherAssignment->executions()->create(['definition_snapshot' => ['name' => 'Outra loja'], 'status' => 'pending']);
+
+        $component = Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->test(StoreCheckHistory::class, ['store' => $store])
+            ->call('openDetails', $execution->id)
+            ->assertSet('selectedExecutionId', $execution->id)
+            ->assertSee('Resposta observada')
+            ->assertSee('Nome histórico')
+            ->assertSee('503')
+            ->assertSee('Indisponível')
+            ->assertDontSeeHtml('<h1>Indisponível</h1>');
+
+        $component->call('closeDetails')->assertSet('selectedExecutionId', null)->assertDontSee('Resposta observada');
+
+        $this->expectException(ModelNotFoundException::class);
+        $component->call('openDetails', $otherExecution->id);
     }
 }

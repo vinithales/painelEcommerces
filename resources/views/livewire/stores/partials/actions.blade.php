@@ -7,6 +7,7 @@
                 <a wire:navigate class="store-actions__item" href="{{ route('stores.'.$route,$store) }}"><x-icon :name="$route"/><span>{{ $label }}</span></a>
             @endforeach
             <a wire:navigate class="store-actions__item" href="{{ route('stores.checks',['storeId'=>$store->id]) }}"><x-icon name="check"/><span>Verificação</span></a>
+            @can('manage')<a wire:navigate class="store-actions__item" href="{{ route('stores.products.create', $store) }}"><x-icon name="products"/><span>Novo produto</span></a>@endcan
             @can('configure')<a wire:navigate class="store-actions__item" href="{{ route('stores.edit',$store) }}"><x-icon name="settings"/><span>Configurações</span></a>@endcan
         </div>
         @can('configure')

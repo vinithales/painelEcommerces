@@ -33,6 +33,9 @@ class WooCommerceApiAdapter implements PlatformApiAdapter
         private readonly string $consumerKey,
         private readonly string $consumerSecret,
         ?Client $client = null,
+        private readonly ?string $wpUsername = null,
+        private readonly ?string $wpApplicationPassword = null,
+        private readonly ?Client $mediaClient = null,
     ) {
         $this->client = $client ?? new Client([
             'base_uri' => rtrim($storeUrl, '/').'/wp-json/wc/v3/',
@@ -85,6 +88,65 @@ class WooCommerceApiAdapter implements PlatformApiAdapter
             'data' => $this->normalizeProduct($raw),
             'raw' => $raw,
         ];
+    }
+
+    public function createProduct(array $attributes, array $images = []): array
+    {
+        $files = array_values(array_filter($images, static fn ($image) => isset($image['contents'])));
+        if ($files && (! $this->wpUsername || ! $this->wpApplicationPassword || parse_url($this->storeUrl, PHP_URL_SCHEME) !== 'https')) {
+            throw new RuntimeException('Para enviar arquivos ao WooCommerce, configure usuário e senha de aplicativo WordPress em uma loja HTTPS.');
+        }
+
+        $payload = ProductFields::payload('woocommerce', $attributes);
+        $payload['type'] = 'simple';
+        $payload['images'] = array_values(array_filter($images, static fn ($image) => isset($image['src'])));
+        $raw = $this->request('POST', 'products', ['json' => $payload])['body'];
+        $imageErrors = [];
+        $uploadedIds = [];
+
+        if ($files) {
+            $client = $this->mediaClient ?? new Client([
+                'base_uri' => rtrim($this->storeUrl, '/').'/wp-json/wp/v2/',
+                'auth' => [$this->wpUsername, $this->wpApplicationPassword],
+                'timeout' => 30,
+                'verify' => true,
+                'allow_redirects' => false,
+            ]);
+
+            foreach ($files as $file) {
+                try {
+                    $name = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file['filename']);
+                    $media = json_decode((string) $client->request('POST', 'media', [
+                        'headers' => ['Content-Type' => $file['mime'], 'Content-Disposition' => 'attachment; filename="'.$name.'"'],
+                        'body' => $file['contents'],
+                    ])->getBody(), true);
+                    $id = $media['id'] ?? null;
+                    if (! $id) {
+                        throw new RuntimeException('O WordPress não retornou o ID da mídia.');
+                    }
+                    $client->request('POST', 'media/'.$id, ['json' => [
+                        'alt_text' => $file['alt'] ?? '',
+                        'title' => $file['name'],
+                        'post' => $raw['id'],
+                    ]]);
+                    $uploadedIds[] = (int) $id;
+                } catch (\Throwable $e) {
+                    $imageErrors[] = $file['name'].': '.Redactor::clean($e->getMessage());
+                }
+            }
+        }
+
+        if ($uploadedIds) {
+            try {
+                $existing = array_map(static fn ($image) => ['id' => (int) $image['id']], $raw['images'] ?? []);
+                $new = array_map(static fn ($id) => ['id' => $id], $uploadedIds);
+                $raw = $this->request('PUT', 'products/'.rawurlencode((string) $raw['id']), ['json' => ['images' => array_merge($existing, $new)]])['body'];
+            } catch (\Throwable $e) {
+                $imageErrors[] = 'As mídias foram enviadas, mas não vinculadas ao produto: '.Redactor::clean($e->getMessage());
+            }
+        }
+
+        return ['data' => $this->normalizeProduct($raw), 'raw' => $raw, 'image_errors' => $imageErrors];
     }
 
     public function updateProduct(string $id, array $attributes): array

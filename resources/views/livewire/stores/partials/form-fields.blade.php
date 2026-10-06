@@ -79,6 +79,20 @@
                 @error('form.consumer_secret') <small class="field__error">{{ $message }}</small> @enderror
             </label>
 
+            @if ($form->platform === 'woocommerce')
+                <label class="field">
+                    <span>Usuário WordPress para mídias</span>
+                    <input type="text" wire:model.blur="form.wp_username" autocomplete="off" />
+                    @error('form.wp_username') <small class="field__error">{{ $message }}</small> @enderror
+                </label>
+                <label class="field">
+                    <span>Senha de aplicativo WordPress</span>
+                    <input type="password" wire:model.blur="form.wp_application_password" autocomplete="new-password" />
+                    @error('form.wp_application_password') <small class="field__error">{{ $message }}</small> @enderror
+                    <small>Necessários apenas para enviar arquivos de imagem. Deixe vazios para manter os valores existentes.</small>
+                </label>
+            @endif
+
             @if ($form->platform === 'magento2')
                 <label class="field">
                     <span>Token de acesso</span>

@@ -42,7 +42,7 @@ class RunCheckAssignmentJob implements ShouldQueue
         return [
         (new WithoutOverlapping('check-assignment:'.$this->assignmentId))
             ->dontRelease()
-            ->expireAfter(120),
+            ->expireAfter(150),
     ];
 
     }

@@ -15,11 +15,13 @@ class CheckAssignment extends Model
         'store_id',
         'interval_minutes',
         'enabled',
+        'next_run_at',
     ];
 
     protected $casts = [
         'enabled' => 'boolean',
         'interval_minutes' => 'integer',
+        'next_run_at' => 'datetime',    
     ];
 
     public function checkDefinition()

@@ -78,6 +78,7 @@
                         <span class="check-history__status check-history__status--{{ ($assertion['passed'] ?? false) ? 'success' : 'fail' }}">{{ ($assertion['passed'] ?? false) ? 'Aprovada' : 'Falhou' }}</span>
                     </div>
                     <dl class="check-history__assertion-values">
+                        <div><dt>Operador</dt><dd>{{ $assertion['operator'] ?? '-' }}</dd></div>
                         <div><dt>Esperado</dt><dd>{{ $formatValue($assertion['expected'] ?? null) }}</dd></div>
                         <div><dt>Obtido</dt><dd>{{ $formatValue($assertion['actual'] ?? null) }}</dd></div>
                     </dl>

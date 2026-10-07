@@ -62,13 +62,24 @@ class CheckDefinitionService
         $removed->delete();
 
         foreach ($assignments as $assignment) {
-            $definition->assignments()->updateOrCreate(
-                ['store_id' => (int) $assignment['store_id']],
-                [
-                    'interval_minutes' => (int) $assignment['interval_minutes'],
-                    'enabled' => (bool) $assignment['enabled'],
-                ]
-            );
+            $model = $definition->assignments()
+                ->lockForUpdate()
+                ->firstOrNew([
+                    'store_id' => (int) $assignment['store_id'],
+                ]);
+
+            $model->fill([
+                'interval_minutes' => (int) $assignment['interval_minutes'],
+                'enabled' => (bool) $assignment['enabled'],
+            ]);
+
+            if (! $model->enabled) {
+                $model->next_run_at = null;
+            } elseif (! $model->exists || $model->isDirty('enabled') || $model->isDirty('interval_minutes')) {
+                $model->next_run_at = now()->addMinutes($model->interval_minutes);
+            }
+
+            $model->save();
         }
     }
 }

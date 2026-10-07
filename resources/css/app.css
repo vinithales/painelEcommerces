@@ -590,6 +590,10 @@ pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:450px;overflow:auto;
 .assignment-chip { display: inline-flex; margin: 0 6px 6px 0; padding: 4px 8px; border-radius: 999px; background: var(--success-soft); color: var(--success-text); font-size: 12px; }
 .assignment-chip.is-disabled { background: var(--surface-container); color: var(--text-muted); }
 .definition-stores { display: flex; flex-wrap: wrap; gap: 6px; max-width: 440px; }
+.definition-stores__all { margin-top: 10px; }
+.assignment-list-dialog { width: min(760px, calc(100% - 32px)); padding: 0; }
+.assignment-list-dialog__table th[scope="row"] { text-transform: none; letter-spacing: normal; overflow-wrap: anywhere; }
+.assignment-list-dialog__table time { white-space: nowrap; }
 .definition-stores .assignment-chip { margin: 0; gap: 8px; align-items: center; flex-wrap: wrap; }
 .assignment-chip__state { padding-left: 8px; border-left: 1px solid var(--surface-border); font-size: 11px; }
 .definition-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

@@ -233,6 +233,39 @@ class CheckDefinitionsManagementTest extends TestCase
             ->assertSee('Definição de outra loja');
     }
 
+    public function test_many_associations_show_three_previews_and_a_complete_dialog(): void
+    {
+        $definition = CheckDefinition::create([
+            'name' => 'Verificação com muitas lojas',
+            'level' => 'SITE',
+            'executor_type' => 'http',
+            'configuration' => ['path' => '/', 'method' => 'GET', 'timeout' => 10, 'follow_redirects' => false],
+            'assertions' => [['field' => 'status_code', 'operator' => 'equals', 'expected' => 200]],
+        ]);
+        foreach (range(1, 5) as $index) {
+            $definition->assignments()->create([
+                'store_id' => $this->store("Loja {$index}")->id,
+                'interval_minutes' => 5,
+                'enabled' => $index !== 4,
+                'next_run_at' => $index === 5 ? '2026-10-08 12:30:00' : null,
+            ]);
+        }
+
+        $html = Livewire::actingAs($this->user('n1'))
+            ->test(CheckDefinitions::class)
+            ->assertSee('Ver todas (5)')
+            ->assertSee('Desabilitada')
+            ->assertSee('Não agendada')
+            ->assertSee('08/10/2026 12:30')
+            ->html();
+
+        $document = new \DOMDocument();
+        @$document->loadHTML('<?xml encoding="utf-8" ?>'.$html);
+        $xpath = new \DOMXPath($document);
+        $this->assertSame(3, $xpath->query('//span[contains(concat(" ", normalize-space(@class), " "), " assignment-chip ")]')->length);
+        $this->assertSame(5, $xpath->query('//dialog//tbody/tr')->length);
+    }
+
     private function store(string $name): Store
     {
         return Store::create([

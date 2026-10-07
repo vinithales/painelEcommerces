@@ -46,15 +46,32 @@
                         <td><span class="badge">{{ $definition->level }}</span></td>
                         <td>{{ $definition->executor_type }}</td>
                         <td>
+                            <div x-data="{}">
                             <div class="definition-stores">
-                                @forelse($definition->assignments as $assignment)
+                                @forelse($definition->assignments->take(3) as $assignment)
                                     <span class="assignment-chip {{ $assignment->enabled ? '' : 'is-disabled' }}">
                                         {{ $assignment->store->name }} · {{ $assignment->interval_minutes }} min
-                                        @if(!$assignment->enabled)<span class="assignment-chip__state">Desabilitada</span>@endif
+                                        <span class="assignment-chip__state" title="Horário a partir do qual a execução poderá ser enfileirada. O início depende do Scheduler e da disponibilidade do worker.">
+                                            Próxima execução:
+                                            @if(!$assignment->enabled)
+                                                Desabilitada
+                                            @elseif(!$assignment->next_run_at)
+                                                Não agendada
+                                            @else
+                                                <time datetime="{{ $assignment->next_run_at->toIso8601String() }}">{{ $assignment->next_run_at->format('d/m/Y H:i') }}</time>
+                                            @endif
+                                        </span>
                                     </span>
                                 @empty
                                     <span class="muted">Nenhuma loja</span>
                                 @endforelse
+                            </div>
+                            @if($definition->assignments->count() > 3)
+                                <button type="button" class="btn btn-secondary definition-stores__all" x-on:click="$refs.associations.showModal()" aria-haspopup="dialog" aria-label="Ver todas as lojas de {{ $definition->name }}">
+                                    Ver todas ({{ $definition->assignments->count() }})
+                                </button>
+                                <x-checks.assignment-list-dialog :definition="$definition" />
+                            @endif
                             </div>
                         </td>
                         <td>

@@ -18,6 +18,8 @@ class RunCheckAssignmentJob implements ShouldQueue
 
     public int $tries = 1;
 
+    public int $timeout = 120;
+
     public ?int $executionId = null;
 
     public bool $failOnTimeout = true;

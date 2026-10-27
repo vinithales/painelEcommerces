@@ -15,6 +15,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('checks:dispatch-due')
         ->everyMinute()
         ->withoutOverlapping();
+
+        $schedule->command('checks:recover-abandoned')
+            ->everyMinute()
+            ->withoutOverlapping();
     }
 
     /**

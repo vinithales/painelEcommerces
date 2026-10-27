@@ -14,8 +14,6 @@ class CheckDefinitionValidator
     public const ASSERTION_OPERATORS = [
         'equals',
         'not_equals',
-        'contains',
-        'not_contains',
         'greater_than',
         'less_than',
         'greater_than_or_equal',
@@ -34,8 +32,6 @@ class CheckDefinitionValidator
     public const TEXT_ASSERTION_OPERATORS = [
         'equals',
         'not_equals',
-        'contains',
-        'not_contains',
     ];
 
     public const ASSERTION_FIELDS = [

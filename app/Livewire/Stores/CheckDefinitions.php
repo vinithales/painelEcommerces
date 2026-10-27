@@ -30,6 +30,16 @@ class CheckDefinitions extends Component
     public bool $formOpen = false;
 
     #[Locked]
+    public int $formStep = 1;
+
+    public const FORM_STEPS = [
+        1 => ['title' => 'Definição', 'description' => 'Nome e tipo da verificação'],
+        2 => ['title' => 'Configuração', 'description' => 'Página e forma de acesso'],
+        3 => ['title' => 'Condições', 'description' => 'Critérios de sucesso'],
+        4 => ['title' => 'Lojas e conclusão', 'description' => 'Destino e frequência'],
+    ];
+
+    #[Locked]
     public ?int $editingId = null;
 
     public string $name = '';
@@ -40,7 +50,27 @@ class CheckDefinitions extends Component
 
     public string $configurationJson = "{\n    \"path\": \"/\",\n    \"method\": \"GET\",\n    \"timeout\": 10,\n    \"follow_redirects\": false\n}";
 
-    public string $assertionsJson = "[\n    {\n        \"field\": \"status_code\",\n        \"operator\": \"equals\",\n        \"expected\": 200\n    }\n]";
+    public array $assertions = [['field' => 'status_code', 'operator' => 'equals', 'expected' => 200]];
+
+    public array $httpConfiguration = ['path' => '/', 'method' => 'GET', 'timeout' => 10, 'follow_redirects' => false];
+
+    public const FIELD_LABELS = [
+        'status_code' => 'Código de resposta HTTP',
+        'response_time' => 'Tempo de resposta',
+        'url' => 'Endereço da página',
+        'body' => 'Conteúdo da resposta',
+    ];
+
+    public const OPERATOR_LABELS = [
+        'equals' => 'Igual a',
+        'not_equals' => 'Diferente de',
+        'greater_than' => 'Maior que',
+        'less_than' => 'Menor que',
+        'greater_than_or_equal' => 'Maior ou igual a',
+        'less_than_or_equal' => 'Menor ou igual a',
+        'contains' => 'Contém',
+        'not_contains' => 'Não contém',
+    ];
 
     public array $storeAssignments = [];
 
@@ -230,11 +260,13 @@ class CheckDefinitions extends Component
         $definition = CheckDefinition::with('assignments')->findOrFail($id);
 
         $this->editingId = $definition->id;
+        $this->formStep = 1;
         $this->name = $definition->name;
         $this->level = $definition->level;
         $this->executorType = $definition->executor_type;
         $this->configurationJson = $this->encodeJson($definition->configuration);
-        $this->assertionsJson = $this->encodeJson($definition->assertions);
+        $this->httpConfiguration = $definition->configuration;
+        $this->assertions = $definition->assertions;
         $this->loadStoreAssignments($definition);
         $this->resetErrorBag();
         $this->formOpen = true;
@@ -246,6 +278,40 @@ class CheckDefinitions extends Component
         $this->resetErrorBag();
     }
 
+    public function previousStep(): void
+    {
+        Gate::authorize('manage');
+        $this->formStep = max(1, $this->formStep - 1);
+        $this->resetErrorBag();
+    }
+
+    public function nextStep(CheckDefinitionValidator $validator): void
+    {
+        Gate::authorize('manage');
+        if ($this->formStep === 1) {
+            $this->validate([
+                'name' => 'required|string|max:255',
+                'level' => ['required', \Illuminate\Validation\Rule::in(CheckDefinitionValidator::LEVELS)],
+                'executorType' => ['required', \Illuminate\Validation\Rule::in(CheckDefinitionValidator::EXECUTOR_TYPES)],
+            ], ['name.required' => 'Dê um nome para esta verificação.']);
+        } elseif (in_array($this->formStep, [2, 3], true)) {
+            // Validate the current step with the same rules used when saving.
+            $validator->validate([
+                'name' => $this->name,
+                'level' => $this->level,
+                'executor_type' => $this->executorType,
+                'configuration' => $this->executorType === 'http'
+                    ? $this->normalizedHttpConfiguration()
+                    : $this->decodeJson('configurationJson'),
+                'assertions' => $this->formStep === 3 ? $this->normalizedAssertions()
+                    : [['field' => 'status_code', 'operator' => 'equals', 'expected' => 200]],
+            ]);
+        }
+
+        $this->formStep = min(4, $this->formStep + 1);
+        $this->resetErrorBag();
+    }
+
     public function save(CheckDefinitionService $service): void
     {
         Gate::authorize('manage');
@@ -254,17 +320,30 @@ class CheckDefinitions extends Component
             ? CheckDefinition::findOrFail($this->editingId)
             : null;
 
-        $saved = $service->save(
-            $definition,
-            [
-                'name' => $this->name,
-                'level' => $this->level,
-                'executor_type' => $this->executorType,
-                'configuration' => $this->decodeJson('configurationJson'),
-                'assertions' => $this->decodeJson('assertionsJson'),
-            ],
-            $this->selectedAssignments()
-        );
+        try {
+            $saved = $service->save(
+                $definition,
+                [
+                    'name' => $this->name,
+                    'level' => $this->level,
+                    'executor_type' => $this->executorType,
+                    'configuration' => $this->executorType === 'http'
+                        ? $this->normalizedHttpConfiguration()
+                        : $this->decodeJson('configurationJson'),
+                    'assertions' => $this->normalizedAssertions(),
+                ],
+                $this->selectedAssignments()
+            );
+        } catch (ValidationException $exception) {
+            $keys = array_keys($exception->errors());
+            $this->formStep = match (true) {
+                collect($keys)->contains(fn ($key) => in_array($key, ['name', 'level', 'executor_type'], true)) => 1,
+                collect($keys)->contains(fn ($key) => str_starts_with($key, 'configuration')) => 2,
+                collect($keys)->contains(fn ($key) => str_starts_with($key, 'assertions')) => 3,
+                default => 4,
+            };
+            throw $exception;
+        }
 
         $this->editingId = $saved->id;
         $this->formOpen = false;
@@ -304,14 +383,79 @@ class CheckDefinitions extends Component
 
     private function resetForm(): void
     {
+        $this->formStep = 1;
         $this->editingId = null;
         $this->name = '';
         $this->level = 'SITE';
         $this->executorType = 'http';
         $this->configurationJson = "{\n    \"path\": \"/\",\n    \"method\": \"GET\",\n    \"timeout\": 10,\n    \"follow_redirects\": false\n}";
-        $this->assertionsJson = "[\n    {\n        \"field\": \"status_code\",\n        \"operator\": \"equals\",\n        \"expected\": 200\n    }\n]";
+        $this->httpConfiguration = ['path' => '/', 'method' => 'GET', 'timeout' => 10, 'follow_redirects' => false];
+        $this->assertions = [['field' => 'status_code', 'operator' => 'equals', 'expected' => 200]];
         $this->storeAssignments = [];
         $this->resetErrorBag();
+    }
+
+    public function addAssertion(): void
+    {
+        Gate::authorize('manage');
+        $this->assertions[] = ['field' => 'response_time', 'operator' => 'less_than', 'expected' => 3000];
+        $this->resetErrorBag();
+    }
+
+    public function removeAssertion(int $index): void
+    {
+        Gate::authorize('manage');
+        if (count($this->assertions) > 1) {
+            unset($this->assertions[$index]);
+            $this->assertions = array_values($this->assertions);
+            $this->resetErrorBag();
+        }
+    }
+
+    public function updatedAssertions(mixed $value, ?string $key): void
+    {
+        if ($key !== null && preg_match('/^(\d+)\.field$/', $key, $matches)) {
+            $index = (int) $matches[1];
+            $this->assertions[$index]['operator'] = 'equals';
+            $this->assertions[$index]['expected'] = '';
+            $this->resetErrorBag();
+        }
+    }
+
+    private function normalizedAssertions(): array
+    {
+        $this->validate([
+            'assertions' => 'required|array|min:1',
+            'assertions.*' => 'array:field,operator,expected',
+            'assertions.*.field' => 'required|string',
+            'assertions.*.operator' => 'required|string',
+            'assertions.*.expected' => 'present',
+        ]);
+
+        return array_map(function (array $assertion): array {
+            if (in_array($assertion['field'], ['status_code', 'response_time'], true)) {
+                // Convert only valid integer input; leave invalid values for backend validation.
+                $value = $assertion['expected'];
+                if (is_string($value) && preg_match('/^\d+$/D', $value)
+                    && filter_var($value, FILTER_VALIDATE_INT) !== false) {
+                    $assertion['expected'] = (int) $value;
+                }
+            }
+
+            return $assertion;
+        }, $this->assertions);
+    }
+
+    private function normalizedHttpConfiguration(): array
+    {
+        $configuration = $this->httpConfiguration;
+        $timeout = $configuration['timeout'] ?? null;
+        if (is_string($timeout) && preg_match('/^\d+$/D', $timeout)
+            && filter_var($timeout, FILTER_VALIDATE_INT) !== false) {
+            $configuration['timeout'] = (int) $timeout;
+        }
+
+        return $configuration;
     }
 
     private function loadStoreAssignments(?CheckDefinition $definition = null): void

@@ -9,9 +9,10 @@ class CheckDefinitionValidator
 {
     public const LEVELS = ['SERVER', 'APP', 'API', 'SITE'];
 
-    public const EXECUTOR_TYPES = ['http', 'api', 'agent', 'database'];
+    public const EXECUTOR_TYPES = ['http', 'browser', 'api', 'agent', 'database'];
 
     public const ASSERTION_OPERATORS = [
+        'contains', 'not_contains', 'contains_ignore_case', 'not_contains_ignore_case',
         'equals',
         'not_equals',
         'greater_than',
@@ -30,6 +31,7 @@ class CheckDefinitionValidator
     ];
 
     public const TEXT_ASSERTION_OPERATORS = [
+        'contains', 'not_contains', 'contains_ignore_case', 'not_contains_ignore_case',
         'equals',
         'not_equals',
     ];
@@ -39,6 +41,14 @@ class CheckDefinitionValidator
         'response_time' => 'integer',
         'url' => 'string',
         'body' => 'string',
+        'cache_status' => 'string',
+        'console_error_count' => 'integer',
+        'page_error_count' => 'integer',
+        'headers.x-cache' => 'string',
+        'headers.cf-cache-status' => 'string',
+        'headers.x-litespeed-cache' => 'string',
+        'headers.cache-control' => 'string',
+        'headers.age' => 'string',
     ];
 
     public function validate(array $data): array
@@ -50,27 +60,39 @@ class CheckDefinitionValidator
             'configuration' => 'present|array',
             'assertions' => 'present|array|min:1',
             'assertions.*' => 'array:field,operator,expected',
-            'assertions.*.field' => ['required', 'string', Rule::in(array_keys(self::ASSERTION_FIELDS))],
+            'assertions.*.field' => ['required', 'string', 'regex:/^(status_code|response_time|url|body|cache_status|console_error_count|page_error_count|headers\.[a-zA-Z0-9_-]+)$/D'],
             'assertions.*.operator' => ['required', Rule::in(self::ASSERTION_OPERATORS)],
             'assertions.*.expected' => 'required',
         ];
 
         if (($data['executor_type'] ?? null) === 'http') {
-            $rules['configuration'] = 'present|array:path,method,timeout,follow_redirects';
+            $rules['configuration'] = 'present|array:path,method,timeout,follow_redirects,samples';
             $rules['configuration.path'] = [
                 'required',
                 'string',
                 'max:2048',
                 'regex:#^/(?!/)(?!.*\\\\)[^\r\n]*$#D',
             ];
+            $rules['configuration.samples'] = 'sometimes|integer|min:1|max:3';
             $rules['configuration.method'] = ['required', Rule::in(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])];
             $rules['configuration.timeout'] = 'required|integer|min:1|max:30';
             $rules['configuration.follow_redirects'] = 'required|boolean';
         }
 
+        if (($data['executor_type'] ?? null) === 'browser') {
+            $rules['configuration'] = 'present|array:path,timeout,wait_ms';
+            $rules['configuration.path'] = ['required', 'string', 'max:2048', 'regex:#^/(?!/)(?!.*\\\\)[^\r\n]*$#D'];
+            $rules['configuration.timeout'] = 'required|integer|min:1|max:30';
+            $rules['configuration.wait_ms'] = 'required|integer|min:0|max:10000';
+        }
+
         $validator = Validator::make($data, $rules);
 
         $validator->after(function ($validator) use ($data): void {
+            if (($data['executor_type'] ?? '') === 'http' && ($data['configuration']['samples'] ?? 1) > 1
+                && ! in_array($data['configuration']['method'] ?? '', ['GET', 'HEAD'], true)) {
+                $validator->errors()->add('configuration.samples', 'Requisições repetidas exigem GET ou HEAD.');
+            }
             $assertions = $data['assertions'] ?? null;
             if (! is_array($assertions)) {
                 return;
@@ -91,11 +113,18 @@ class CheckDefinitionValidator
                 $operator = $assertion['operator'] ?? null;
                 $expected = $assertion['expected'] ?? null;
 
-                if (! is_string($field) || ! isset(self::ASSERTION_FIELDS[$field])) {
+                if (! is_string($field) || (! isset(self::ASSERTION_FIELDS[$field]) && ! str_starts_with($field, 'headers.'))) {
                     continue;
                 }
 
-                $operators = self::ASSERTION_FIELDS[$field] === 'integer'
+                if (in_array($field, ['console_error_count', 'page_error_count'], true) && ($data['executor_type'] ?? '') !== 'browser') {
+                    $validator->errors()->add("assertions.{$index}.field", 'Este campo exige o executor browser.');
+                }
+                if ($field === 'cache_status' && ($data['executor_type'] ?? '') !== 'http') {
+                    $validator->errors()->add("assertions.{$index}.field", 'O diagnostico de cache exige o executor HTTP.');
+                }
+
+                $operators = (self::ASSERTION_FIELDS[$field] ?? 'string') === 'integer'
                     ? self::NUMERIC_ASSERTION_OPERATORS
                     : self::TEXT_ASSERTION_OPERATORS;
 
@@ -111,12 +140,12 @@ class CheckDefinitionValidator
                         "assertions.{$index}.expected",
                         'O status_code deve ser um inteiro entre 100 e 599.'
                     );
-                } elseif ($field === 'response_time' && (! is_int($expected) || $expected < 0)) {
+                } elseif (in_array($field, ['response_time', 'console_error_count', 'page_error_count'], true) && (! is_int($expected) || $expected < 0)) {
                     $validator->errors()->add(
                         "assertions.{$index}.expected",
-                        'O response_time deve ser um inteiro maior ou igual a zero.'
+                        "O campo '{$field}' deve ser um inteiro maior ou igual a zero."
                     );
-                } elseif (in_array($field, ['url', 'body'], true) && ! is_string($expected)) {
+                } elseif ((self::ASSERTION_FIELDS[$field] ?? 'string') === 'string' && ! is_string($expected)) {
                     $validator->errors()->add(
                         "assertions.{$index}.expected",
                         "O valor esperado para '{$field}' deve ser texto."

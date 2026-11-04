@@ -2,36 +2,35 @@
 
 namespace App\Services\Checks;
 
-use App\Services\Checks\AssertionEvaluator;
-use App\Services\Checks\Executors\HttpExecutor;
 use App\Models\CheckAssignment;
 use App\Models\CheckExecution;
+use App\Services\Checks\Executors\BrowserExecutor;
+use App\Services\Checks\Executors\HttpExecutor;
 
 class CheckExecutionService
 {
-
     public function __construct(
         private readonly HttpExecutor $httpExecutor,
         private readonly AssertionEvaluator $assertionEvaluator,
-    ) {
-    }
+        private readonly BrowserExecutor $browserExecutor,
+    ) {}
 
-    public function run(CheckAssignment $assignment, ?CheckExecution $execution = null): ?CheckExecution
+    public function run(?CheckAssignment $assignment, ?CheckExecution $execution = null): ?CheckExecution
     {
         $evaluations = [];
 
-        if (!$assignment?->exists || !$assignment->store()->exists()) {
+        if (! $assignment?->exists || ! $assignment->store()->exists()) {
             return null;
         }
 
-        if (!$assignment->enabled) {
+        if (! $assignment->enabled) {
             return null;
         }
 
         $assignment->loadMissing('checkDefinition');
         $definition = $assignment->checkDefinition;
 
-        if (!$definition) {
+        if (! $definition) {
             return null;
         }
 
@@ -39,7 +38,7 @@ class CheckExecutionService
             ? $execution->definition_snapshot['executor_type']
             : $definition->executor_type;
 
-        if (!in_array($executorType, ['http'], true)) {
+        if (! in_array($executorType, ['http', 'browser'], true)) {
             throw new \InvalidArgumentException("Executor type não suportado: {$executorType}");
         }
 
@@ -62,23 +61,27 @@ class CheckExecutionService
 
             $assertions = $execution->definition_snapshot['assertions'] ?? null;
 
-            if (!is_array($assertions) || !array_is_list($assertions) || $assertions === []) {
+            if (! is_array($assertions) || ! array_is_list($assertions) || $assertions === []) {
                 throw new \InvalidArgumentException(
                     'A execução precisa de uma lista não vazia de condições.'
                 );
             }
 
-
-            $result = $this->httpExecutor->execute(
+            $executor = $executorType === 'browser' ? $this->browserExecutor : $this->httpExecutor;
+            $result = $executor->execute(
                 $assignment->store->store_url,
                 $execution->definition_snapshot['configuration']
             );
+
+            if (isset($result['observation_error'])) {
+                throw new \RuntimeException($result['observation_error']);
+            }
 
             foreach ($assertions as $assertion) {
                 $evaluations[] = $this->assertionEvaluator->evaluate($result, $assertion);
             }
 
-            $allPassed = collect($evaluations)->every(fn(array $evaluation) => ($evaluation['passed'] ?? false) === true);
+            $allPassed = collect($evaluations)->every(fn (array $evaluation) => ($evaluation['passed'] ?? false) === true);
 
             $execution->update([
                 'status' => 'completed',
@@ -95,15 +98,14 @@ class CheckExecutionService
                     'status' => 'error',
                     'outcome' => null,
                     'error_message' => $e->getMessage(),
+                    'result' => isset($result) ? ['observed' => $result, 'assertions' => $evaluations] : null,
                     'finished_at' => now(),
                 ]);
-            } else if ($execution === null) {
+            } elseif ($execution === null) {
                 throw $e;
             }
         }
 
         return $execution;
     }
-
-
 }

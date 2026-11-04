@@ -7,7 +7,7 @@
         'group' => $enabledAssignments->whereIn('id', $assignmentIds),
         default => $enabledAssignments,
     };
-    $canExecute = $definition->executor_type === 'http' && $targets->isNotEmpty();
+    $canExecute = in_array($definition->executor_type, ['http', 'browser'], true) && $targets->isNotEmpty();
     $finished = collect($progress)->whereIn('status', ['success', 'failed', 'error'])->count();
     $failures = collect($progress)->whereIn('status', ['failed', 'error'])->count();
     $active = $started && $finished < count($progress);
@@ -101,7 +101,10 @@
                                 {{ $statusLabels[$row['status']] ?? $row['status'] }}
                             </span>
                         </div>
-                        @if($row['message'])<p class="execution-monitor__error" role="alert">{{ $row['message'] }}</p>@endif
+                        @if($row['message'])<p class="{{ in_array($row['status'], ['failed', 'error'], true) ? 'execution-monitor__error' : 'muted' }}" @if(in_array($row['status'], ['failed', 'error'], true)) role="alert" @endif>{{ $row['message'] }}</p>@endif
+                        @if(isset($row['store_id']))
+                            <a href="{{ route('stores.check-history', $row['store_id']) }}" wire:navigate>Ver histórico e detalhes</a>
+                        @endif
                     </li>
                 @endforeach
             </ul>

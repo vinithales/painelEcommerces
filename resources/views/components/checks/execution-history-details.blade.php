@@ -58,6 +58,9 @@
                     <div><dt>Tempo de resposta</dt><dd>{{ isset($observed['response_time']) ? $observed['response_time'].' ms' : '—' }}</dd></div>
                     <div class="check-history__fact-wide"><dt>URL</dt><dd>{{ $observed['url'] ?? '—' }}</dd></div>
                 </dl>
+                @if(isset($observed['cache_status']))
+                    <p>Cache: <strong>{{ $observed['cache_status'] }}</strong> · Cabeçalho: {{ $observed['cache_header'] ?? 'Nenhum cabeçalho de cache reconhecido' }}</p>
+                @endif
                 @if (array_key_exists('body', $observed) && $observed['body'] !== null && $observed['body'] !== '')
                     <details class="check-history__body-details">
                         <summary>Ver HTML da resposta</summary>
@@ -68,6 +71,20 @@
                 <p class="check-history__muted">Ainda não há uma resposta registrada para esta execução.</p>
             @endif
         </section>
+
+        @foreach(['headers' => 'Cabecalhos da ultima resposta', 'samples' => 'Acessos para verificar cache', 'console_errors' => 'Erros de console', 'page_errors' => 'Excecoes JavaScript', 'blocked_requests' => 'Requisicoes bloqueadas pelo monitor'] as $key => $label)
+            @if(array_key_exists($key, $observed))
+                <section class="check-history__detail-section">
+                    <h3>{{ $label }}</h3>
+                    @if($observed[$key])
+                        <pre style="white-space: pre-wrap; overflow-wrap: anywhere">{{ json_encode($observed[$key], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
+                    @else
+                        <p>Nenhum registro.</p>
+                    @endif
+                </section>
+            @endif
+        @endforeach
+        @if($observed['errors_truncated'] ?? false)<p>Exibindo os primeiros 100 erros de cada tipo. A contagem inclui todos.</p>@endif
 
         <section class="check-history__detail-section" aria-labelledby="check-history-assertions-title">
             <h3 id="check-history-assertions-title">Condições avaliadas</h3>

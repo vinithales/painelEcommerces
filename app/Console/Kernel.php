@@ -19,6 +19,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('checks:recover-abandoned')
             ->everyMinute()
             ->withoutOverlapping();
+        
+        $schedule->command('checks:clean-execution-results')
+            ->dailyAt('03:00')
+            ->withoutOverlapping();
     }
 
     /**

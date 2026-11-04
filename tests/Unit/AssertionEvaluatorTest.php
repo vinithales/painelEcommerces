@@ -68,17 +68,12 @@ class AssertionEvaluatorTest extends TestCase
         $this->assertTrue($evaluator->evaluate(['value' => '200'], $assertion)['passed']);
     }
 
-    public function test_text_operators_are_not_supported_in_this_stage(): void
+    public function test_text_operators_support_substrings_and_case_insensitive_matching(): void
     {
-        foreach (['contains', 'not_contains'] as $operator) {
-            try {
-                (new AssertionEvaluator)->evaluate(['body' => 'texto'], [
-                    'field' => 'body', 'operator' => $operator, 'expected' => 'texto',
-                ]);
-                $this->fail('Operador ainda indispon?vel deve gerar erro.');
-            } catch (InvalidArgumentException $exception) {
-                $this->assertStringContainsString($operator, $exception->getMessage());
-            }
+        foreach (['contains' => true, 'not_contains' => false, 'contains_ignore_case' => true, 'not_contains_ignore_case' => false] as $operator => $passed) {
+            $this->assertSame($passed, (new AssertionEvaluator)->evaluate(['body' => 'texto'], [
+                'field' => 'body', 'operator' => $operator, 'expected' => str_contains($operator, 'ignore_case') ? 'TEXTO' : 'texto',
+            ])['passed']);
         }
     }
 

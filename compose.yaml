@@ -17,8 +17,17 @@ x-app-environment: &app-environment
   MAIL_MAILER: smtp
   MAIL_HOST: mailpit
   MAIL_PORT: 1025
+  BROWSER_CHECK_TOKEN: ${APP_KEY}
 
 services:
+  browser:
+    build: ./browser
+    environment:
+      BROWSER_CHECK_TOKEN: ${APP_KEY}
+    init: true
+    shm_size: 256mb
+    restart: unless-stopped
+
   app:
     build:
       context: .

@@ -3,15 +3,16 @@
 namespace App\Livewire\Stores;
 
 use App\Actions\Checks\CheckDefinitionValidator;
-use App\Models\CheckDefinition;
+use App\Jobs\RunCheckAssignmentJob;
 use App\Models\CheckAssignment;
+use App\Models\CheckDefinition;
 use App\Models\CheckExecution;
 use App\Models\Store;
 use App\Services\Checks\CheckDefinitionService;
-use App\Jobs\RunCheckAssignmentJob;
-use JsonException;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use JsonException;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -54,14 +55,27 @@ class CheckDefinitions extends Component
 
     public array $httpConfiguration = ['path' => '/', 'method' => 'GET', 'timeout' => 10, 'follow_redirects' => false];
 
+    public array $browserConfiguration = ['path' => '/', 'timeout' => 30, 'wait_ms' => 5000];
+
     public const FIELD_LABELS = [
         'status_code' => 'Código de resposta HTTP',
         'response_time' => 'Tempo de resposta',
         'url' => 'Endereço da página',
+        'console_error_count' => 'Quantidade de erros de console',
+        'page_error_count' => 'Quantidade de exceções JavaScript',
+        'headers.x-cache' => 'Cabeçalho X-Cache',
+        'headers.x-magento-cache-debug' => 'Cabeçalho X-Magento-Cache-Debug',
+        'cache_status' => 'Estado do cache (detecção automática)',
+        'headers.cf-cache-status' => 'Cabeçalho CF-Cache-Status',
+        'headers.x-litespeed-cache' => 'Cabeçalho X-LiteSpeed-Cache',
+        'headers.cache-control' => 'Cabeçalho Cache-Control',
+        'headers.age' => 'Cabeçalho Age',
         'body' => 'Conteúdo da resposta',
     ];
 
     public const OPERATOR_LABELS = [
+        'contains_ignore_case' => 'Contém (ignorar maiúsculas)',
+        'not_contains_ignore_case' => 'Não contém (ignorar maiúsculas)',
         'equals' => 'Igual a',
         'not_equals' => 'Diferente de',
         'greater_than' => 'Maior que',
@@ -136,7 +150,7 @@ class CheckDefinitions extends Component
         $definition = CheckDefinition::findOrFail($this->executionDefinitionId);
         $this->validate(['executionScope' => 'required|in:all,single,group']);
 
-        if ($definition->executor_type !== 'http') {
+        if (! in_array($definition->executor_type, ['http', 'browser'], true)) {
             throw ValidationException::withMessages(['executionScope' => 'Execução imediata disponível apenas para verificações HTTP.']);
         }
 
@@ -188,7 +202,7 @@ class CheckDefinitions extends Component
             ]);
             $key = (string) $execution->id;
             $this->executionIds[] = $execution->id;
-            $this->executionProgress[$key] = ['store' => $assignment->store->name, 'status' => 'pending', 'message' => null];
+            $this->executionProgress[$key] = ['store' => $assignment->store->name, 'store_id' => $assignment->store_id, 'status' => 'pending', 'message' => null];
             try {
                 RunCheckAssignmentJob::dispatch($assignment->id, $execution->id);
             } catch (\Throwable $e) {
@@ -222,6 +236,12 @@ class CheckDefinitions extends Component
                 $status = in_array($execution->outcome, ['success', 'passed'], true) ? 'success' : 'failed';
                 if ($status === 'failed') {
                     $message = 'Uma ou mais condições da verificação não foram atendidas.';
+                }
+                $observed = $execution->result['observed'] ?? [];
+                if (isset($observed['console_error_count'], $observed['page_error_count'])) {
+                    $message = $observed['console_error_count'].' erro(s) de console; '.$observed['page_error_count'].' exceção(ões) JavaScript.';
+                } elseif (isset($observed['cache_status'])) {
+                    $message = 'Cache: '.$observed['cache_status'].' ('.($observed['cache_header'] ?? 'sem cabeçalho reconhecido').').';
                 }
             }
             $this->executionProgress[(string) $id]['status'] = $status;
@@ -266,6 +286,7 @@ class CheckDefinitions extends Component
         $this->executorType = $definition->executor_type;
         $this->configurationJson = $this->encodeJson($definition->configuration);
         $this->httpConfiguration = $definition->configuration;
+        $this->browserConfiguration = $definition->executor_type === 'browser' ? $definition->configuration : ['path' => '/', 'timeout' => 30, 'wait_ms' => 5000];
         $this->assertions = $definition->assertions;
         $this->loadStoreAssignments($definition);
         $this->resetErrorBag();
@@ -291,8 +312,8 @@ class CheckDefinitions extends Component
         if ($this->formStep === 1) {
             $this->validate([
                 'name' => 'required|string|max:255',
-                'level' => ['required', \Illuminate\Validation\Rule::in(CheckDefinitionValidator::LEVELS)],
-                'executorType' => ['required', \Illuminate\Validation\Rule::in(CheckDefinitionValidator::EXECUTOR_TYPES)],
+                'level' => ['required', Rule::in(CheckDefinitionValidator::LEVELS)],
+                'executorType' => ['required', Rule::in(CheckDefinitionValidator::EXECUTOR_TYPES)],
             ], ['name.required' => 'Dê um nome para esta verificação.']);
         } elseif (in_array($this->formStep, [2, 3], true)) {
             // Validate the current step with the same rules used when saving.
@@ -302,7 +323,7 @@ class CheckDefinitions extends Component
                 'executor_type' => $this->executorType,
                 'configuration' => $this->executorType === 'http'
                     ? $this->normalizedHttpConfiguration()
-                    : $this->decodeJson('configurationJson'),
+                    : ($this->executorType === 'browser' ? $this->normalizedBrowserConfiguration() : $this->decodeJson('configurationJson')),
                 'assertions' => $this->formStep === 3 ? $this->normalizedAssertions()
                     : [['field' => 'status_code', 'operator' => 'equals', 'expected' => 200]],
             ]);
@@ -329,7 +350,7 @@ class CheckDefinitions extends Component
                     'executor_type' => $this->executorType,
                     'configuration' => $this->executorType === 'http'
                         ? $this->normalizedHttpConfiguration()
-                        : $this->decodeJson('configurationJson'),
+                        : ($this->executorType === 'browser' ? $this->normalizedBrowserConfiguration() : $this->decodeJson('configurationJson')),
                     'assertions' => $this->normalizedAssertions(),
                 ],
                 $this->selectedAssignments()
@@ -362,12 +383,14 @@ class CheckDefinitions extends Component
     {
         Gate::authorize('operate');
         $assignment = CheckAssignment::with(['checkDefinition', 'store'])->findOrFail($id);
-        if ($assignment->checkDefinition->executor_type !== 'http') {
+        if (! in_array($assignment->checkDefinition->executor_type, ['http', 'browser'], true)) {
             session()->flash('status', 'Execução imediata apenas disponível para verificações HTTP.');
+
             return;
         }
         if (! $assignment->enabled) {
             session()->flash('status', 'Nenhuma verificação habilitada para execução imediata.');
+
             return;
         }
 
@@ -390,6 +413,7 @@ class CheckDefinitions extends Component
         $this->executorType = 'http';
         $this->configurationJson = "{\n    \"path\": \"/\",\n    \"method\": \"GET\",\n    \"timeout\": 10,\n    \"follow_redirects\": false\n}";
         $this->httpConfiguration = ['path' => '/', 'method' => 'GET', 'timeout' => 10, 'follow_redirects' => false];
+        $this->browserConfiguration = ['path' => '/', 'timeout' => 30, 'wait_ms' => 5000];
         $this->assertions = [['field' => 'status_code', 'operator' => 'equals', 'expected' => 200]];
         $this->storeAssignments = [];
         $this->resetErrorBag();
@@ -433,7 +457,7 @@ class CheckDefinitions extends Component
         ]);
 
         return array_map(function (array $assertion): array {
-            if (in_array($assertion['field'], ['status_code', 'response_time'], true)) {
+            if (in_array($assertion['field'], ['status_code', 'response_time', 'console_error_count', 'page_error_count'], true)) {
                 // Convert only valid integer input; leave invalid values for backend validation.
                 $value = $assertion['expected'];
                 if (is_string($value) && preg_match('/^\d+$/D', $value)
@@ -446,6 +470,18 @@ class CheckDefinitions extends Component
         }, $this->assertions);
     }
 
+    private function normalizedBrowserConfiguration(): array
+    {
+        $configuration = $this->browserConfiguration;
+        foreach (['timeout', 'wait_ms'] as $key) {
+            if (isset($configuration[$key]) && is_string($configuration[$key]) && ctype_digit($configuration[$key])) {
+                $configuration[$key] = (int) $configuration[$key];
+            }
+        }
+
+        return $configuration;
+    }
+
     private function normalizedHttpConfiguration(): array
     {
         $configuration = $this->httpConfiguration;
@@ -453,6 +489,12 @@ class CheckDefinitions extends Component
         if (is_string($timeout) && preg_match('/^\d+$/D', $timeout)
             && filter_var($timeout, FILTER_VALIDATE_INT) !== false) {
             $configuration['timeout'] = (int) $timeout;
+        }
+
+        foreach (['samples'] as $key) {
+            if (isset($configuration[$key]) && is_string($configuration[$key]) && ctype_digit($configuration[$key])) {
+                $configuration[$key] = (int) $configuration[$key];
+            }
         }
 
         return $configuration;

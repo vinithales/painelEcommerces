@@ -57,7 +57,7 @@ As verificações usam definições reutilizáveis (`check_definitions`), associ
 
 O popup permite executar em todas as lojas habilitadas, em uma loja ou em um grupo selecionado. A execução começa após clicar em Executar. Jobs `RunCheckAssignmentJob` processam a fila e o popup acompanha os estados, resultados e erros de cada loja.
 
-O executor disponível é HTTP. Cada execução registra uma cópia da definição, horário de início e fim, resultado das condições e eventuais erros. O cliente HTTP restringe destinos públicos, valida DNS e redirecionamentos e limita tamanho e duração das respostas.
+Os executores HTTP e browser permitem verificar cabecalhos/cache e erros de console por loja. Consulte [cache e console](docs/store-diagnostics.md) para cadastro automatico, configuracao e limites. Cada execucao preserva a definicao e os resultados no historico.
 
 Configure `QUEUE_CONNECTION=database` e mantenha o worker ativo. O motor antigo, seu agendador, importador e alertas foram removidos. A migração `2026_10_06_000001_remove_legacy_store_checks` apaga definitivamente as tabelas legadas e os jobs e auditorias exclusivos desse sistema; os dados atuais são preservados.
 

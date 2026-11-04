@@ -2,15 +2,15 @@
 
 namespace App\Jobs;
 
+use App\Models\CheckAssignment;
+use App\Models\CheckExecution;
+use App\Services\Checks\CheckExecutionService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
-use App\Models\CheckAssignment;
-use App\Models\CheckExecution;
-use App\Services\Checks\CheckExecutionService;
+use Illuminate\Queue\SerializesModels;
 
 class RunCheckAssignmentJob implements ShouldQueue
 {
@@ -23,13 +23,14 @@ class RunCheckAssignmentJob implements ShouldQueue
     public ?int $executionId = null;
 
     public bool $failOnTimeout = true;
+
     /**
      * Create a new job instance.
      */
     public function __construct(public int $assignmentId, ?int $executionId = null)
     {
         $this->executionId = $executionId;
-        $this->tries = $executionId ? 30 : 1;
+        $this->tries = $executionId ? 300 : 1;
     }
 
     /**
@@ -46,8 +47,9 @@ class RunCheckAssignmentJob implements ShouldQueue
             return;
         }
 
-        if (!$assignment) {
+        if (! $assignment) {
             $this->failed(new \RuntimeException('A associação com a loja não está mais disponível.'));
+
             return;
         }
 
@@ -69,6 +71,14 @@ class RunCheckAssignmentJob implements ShouldQueue
     public function middleware(): array
     {
         $middleware = (new WithoutOverlapping('check-assignment:'.$this->assignmentId))->expireAfter(150);
-        return [$this->executionId ? $middleware->releaseAfter(5) : $middleware->dontRelease()];
+        $locks = [$this->executionId ? $middleware->releaseAfter(5) : $middleware->dontRelease()];
+        $type = $this->executionId
+            ? CheckExecution::find($this->executionId)?->definition_snapshot['executor_type'] ?? null
+            : CheckAssignment::find($this->assignmentId)?->checkDefinition?->executor_type;
+        if ($type === 'browser') {
+            $locks[] = (new WithoutOverlapping('browser-check'))->shared()->releaseAfter(5)->expireAfter(60);
+        }
+
+        return $locks;
     }
 }

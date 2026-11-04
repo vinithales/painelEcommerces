@@ -22,3 +22,6 @@ AGENTS.md
 *.agent.md
 *.prompt.md
 *.instructions.md
+
+/.npm-cache
+/browser/node_modules

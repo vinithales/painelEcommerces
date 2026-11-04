@@ -76,7 +76,7 @@
                         </td>
                         <td>
                             <div class="definition-actions">
-                                @php $canExecute = $definition->executor_type === 'http' && $definition->assignments->contains('enabled', true); @endphp
+                                @php $canExecute = in_array($definition->executor_type, ['http', 'browser'], true) && $definition->assignments->contains('enabled', true); @endphp
                                 <button type="button" class="btn btn-secondary definition-run" wire:click="openExecution({{ $definition->id }})" wire:loading.attr="disabled" wire:target="openExecution" @disabled(!$canExecute) aria-label="Executar {{ $definition->name }}" aria-haspopup="dialog">
                                     <x-icon name="play" width="16" height="16"/> Executar
                                 </button>
@@ -85,7 +85,7 @@
                                 @endcan
                             </div>
                             @if(!$canExecute)
-                                <p class="definition-actions__hint">{{ $definition->executor_type !== 'http' ? 'Execução disponível para HTTP' : 'Nenhuma loja habilitada' }}</p>
+                                <p class="definition-actions__hint">{{ ! in_array($definition->executor_type, ['http', 'browser'], true) ? 'Execução disponível para HTTP' : 'Nenhuma loja habilitada' }}</p>
                             @endif
                         </td>
                     </tr>
@@ -193,6 +193,10 @@
                                 </select>
                                 @error('configuration.method')<span class="field-error">{{ $message }}</span>@enderror
                             </label>
+                            <label>Requisições (a última será avaliada)
+                                <input type="number" min="1" max="3" placeholder="1" wire:model="httpConfiguration.samples">
+                                <small>Use 3 para aquecer o cache. Os cabeçalhos ficam no histórico.</small>
+                            </label>
                             <label>Tempo limite (segundos)
                                 <input type="number" min="1" max="30" step="1" wire:model="httpConfiguration.timeout" required>
                                 @error('configuration.timeout')<span class="field-error">{{ $message }}</span>@enderror
@@ -202,6 +206,20 @@
                                 <span>Seguir redirecionamentos <small class="muted">Continuar quando a página encaminhar para outro endereço.</small></span>
                             </label>
                             @error('configuration.follow_redirects')<span class="field-error">{{ $message }}</span>@enderror
+                        </div>
+                    @elseif($executorType === 'browser')
+                        <p>Registra console.error e exceções JavaScript da página e de seus scripts durante a observação.</p>
+                        <div class="field-grid">
+                            <label class="field--full">Caminho da página
+                                <input wire:model="browserConfiguration.path" placeholder="/" maxlength="2048" required>
+                            </label>
+                            <label>Tempo limite de carregamento (segundos)
+                                <input type="number" min="1" max="30" wire:model="browserConfiguration.timeout" required>
+                            </label>
+                            <label>Observar após carregar (ms)
+                                <input type="number" min="0" max="10000" wire:model="browserConfiguration.wait_ms" required>
+                                <small>5000 ms = 5 segundos. Abre apenas o caminho informado, sem cliques.</small>
+                            </label>
                         </div>
                     @else
                         <label>Configuração avançada (JSON)
@@ -221,7 +239,7 @@
                         @foreach($assertions as $index => $assertion)
                             @php
                                 $field = $assertion['field'] ?? '';
-                                $numeric = in_array($field, ['status_code', 'response_time'], true);
+                                $numeric = in_array($field, ['status_code', 'response_time', 'console_error_count', 'page_error_count'], true);
                                 $operators = $numeric
                                     ? \App\Actions\Checks\CheckDefinitionValidator::NUMERIC_ASSERTION_OPERATORS
                                     : \App\Actions\Checks\CheckDefinitionValidator::TEXT_ASSERTION_OPERATORS;
@@ -231,6 +249,9 @@
                                 <div class="condition-row__fields">
                                     <label>Campo
                                         <select wire:model.live="assertions.{{ $index }}.field">
+                                            @if(!array_key_exists($field, \App\Livewire\Stores\CheckDefinitions::FIELD_LABELS))
+                                                <option value="{{ $field }}">{{ $field }}</option>
+                                            @endif
                                             @foreach(\App\Livewire\Stores\CheckDefinitions::FIELD_LABELS as $value => $label)
                                                 <option value="{{ $value }}">{{ $label }}</option>
                                             @endforeach

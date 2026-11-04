@@ -259,7 +259,7 @@ class CheckDefinitionsManagementTest extends TestCase
             ->assertSee('08/10/2026 12:30')
             ->html();
 
-        $document = new \DOMDocument();
+        $document = new \DOMDocument;
         @$document->loadHTML('<?xml encoding="utf-8" ?>'.$html);
         $xpath = new \DOMXPath($document);
         $this->assertSame(3, $xpath->query('//span[contains(concat(" ", normalize-space(@class), " "), " assignment-chip ")]')->length);
@@ -303,7 +303,7 @@ class CheckDefinitionsManagementTest extends TestCase
             ->assertSet('assertions', [['field' => 'status_code', 'operator' => 'equals', 'expected' => 200]]);
     }
 
-    public function test_condition_rows_do_not_coerce_invalid_numbers_or_text_operators(): void
+    public function test_condition_rows_reject_invalid_numbers_and_accept_text_operators(): void
     {
         $component = Livewire::actingAs($this->user('admin'))
             ->test(CheckDefinitions::class)
@@ -320,7 +320,7 @@ class CheckDefinitionsManagementTest extends TestCase
 
         $component->set('assertions', [['field' => 'body', 'operator' => 'contains', 'expected' => 'texto']])
             ->call('save')
-            ->assertHasErrors(['assertions.0.operator']);
+            ->assertHasNoErrors();
     }
 
     public function test_wizard_validates_each_step_and_preserves_values_when_going_back(): void

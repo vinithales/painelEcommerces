@@ -20,6 +20,15 @@ A lista de definições também mostra o resumo dos resultados, a última execu�
 
 ## Cache
 
+### Como interpretar os resultados
+
+- **HIT**: o cabeçalho da resposta avaliada informou atendimento pelo cache.
+- **MISS**: o cabeçalho informou que aquela resposta não foi atendida pelo cache. Isso, por si só, não significa que a loja está indisponível.
+- **Cache não identificado**: não há cabeçalho reconhecido ou seu valor não informa HIT/MISS. Não equivale a MISS.
+- **Erro de execução**: a verificação ficou inconclusiva. Por exemplo, “Resposta grande demais para o monitor” significa que a leitura foi interrompida pelo limite de tamanho; não permite concluir HIT ou MISS. O limite de leitura HTTP está em `operations.max_response_bytes` (configuração atual: 100 MiB).
+
+Relatório, histórico e acompanhamento de execução apresentam uma explicação e orientações de investigação para erros conhecidos. A mensagem original permanece disponível em **Detalhes técnicos**. As explicações também se aplicam aos registros antigos, sem alterar seus resultados salvos.
+
 Sao tres GETs anonimos consecutivos a pagina inicial, seguindo redirecionamentos. Cada amostra registra status, URL final e cabecalhos. A ultima resposta precisa retornar HTTP 200 e `cache_status` igual a `HIT`. A deteccao escolhe o primeiro cabecalho presente nesta ordem: X-Cache, X-Magento-Cache-Debug, CF-Cache-Status, X-LiteSpeed-Cache, X-Proxy-Cache, X-Cache-Status. A origem fica em `cache_header`. Valores contendo MISS prevalecem sobre HIT; valores sem HIT/MISS ou sem cabecalho reconhecido produzem UNKNOWN e reprovam. Um primeiro MISS seguido de HIT e aceito. UNKNOWN indica falta de evidencia reconhecida, nao prova ausencia de qualquer camada de cache.
 
 Campos `headers.<nome>` aceitam qualquer nome de cabeçalho via definição; o painel oferece X-Cache, CF-Cache-Status, X-LiteSpeed-Cache, Cache-Control e Age. Os nomes são normalizados para minúsculas. Cabeçalho ausente reprova qualquer comparação, inclusive `not_equals` e `not_contains`. Operadores textuais: igualdade, diferença, contém/não contém e variantes que ignoram maiúsculas. As condições continuam combinadas por E.

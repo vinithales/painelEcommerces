@@ -9,6 +9,7 @@ use App\Models\CheckDefinition;
 use App\Models\CheckExecution;
 use App\Models\Store;
 use App\Services\Checks\CheckDefinitionService;
+use App\Services\Checks\CheckExecutionFeedback;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -241,7 +242,8 @@ class CheckDefinitions extends Component
                 if (isset($observed['console_error_count'], $observed['page_error_count'])) {
                     $message = $observed['console_error_count'].' erro(s) de console; '.$observed['page_error_count'].' exceção(ões) JavaScript.';
                 } elseif (isset($observed['cache_status'])) {
-                    $message = 'Cache: '.$observed['cache_status'].' ('.($observed['cache_header'] ?? 'sem cabeçalho reconhecido').').';
+                    $feedback = app(CheckExecutionFeedback::class)->cache($observed);
+                    $message = $feedback['title'].'. '.$feedback['explanation'];
                 }
             }
             $this->executionProgress[(string) $id]['status'] = $status;

@@ -51,7 +51,7 @@
                             </td>
                             <td>
                                 @if ($execution->error_message)
-                                    <span class="check-history__error">{{ $execution->error_message }}</span>
+                                    <x-checks.error-feedback :message="$execution->error_message" :snapshot="$execution->definition_snapshot ?? []" technical />
                                 @else
                                     <span class="check-history__muted">—</span>
                                 @endif

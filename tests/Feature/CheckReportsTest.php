@@ -112,6 +112,45 @@ class CheckReportsTest extends TestCase
             ->assertOk()->assertSee('Nenhuma loja encontrada para os filtros selecionados.');
     }
 
+    public function test_old_size_errors_are_explained_in_report_and_details_without_changing_saved_result(): void
+    {
+        $assignment = $this->assignment($this->definition('Cache HIT'), 'Loja com resposta grande');
+        $execution = $this->execution($assignment, 'error');
+        $execution->update([
+            'definition_snapshot' => ['name' => 'Cache HIT', 'assertions' => [['field' => 'cache_status', 'operator' => 'equals', 'expected' => 'HIT']]],
+            'error_message' => 'Resposta acima do limite.',
+        ]);
+
+        $this->reportComponent()
+            ->assertSee('Resposta grande demais para o monitor')
+            ->assertSee('Cache não verificado')
+            ->assertSee('não permite concluir se a resposta foi HIT ou MISS')
+            ->assertSee('Como investigar:')
+            ->assertDontSee('Resposta acima do limite.')
+            ->call('openDetails', $execution->id)
+            ->assertSee('Detalhes técnicos')
+            ->assertSee('Resposta acima do limite.');
+        $this->assertSame('error', $execution->fresh()->status);
+        $this->assertSame('Resposta acima do limite.', $execution->error_message);
+        $this->assertNull($execution->result);
+    }
+
+    public function test_report_distinguishes_miss_from_unknown_cache_and_escapes_original_error(): void
+    {
+        $definition = $this->definition('Cache HIT');
+        foreach (['MISS', 'UNKNOWN'] as $status) {
+            $assignment = $this->assignment($definition, 'Loja '.$status);
+            $this->execution($assignment, 'completed', 'failed', ['observed' => ['cache_status' => $status]]);
+        }
+        $error = $this->execution($this->assignment($definition, 'Loja com erro'), 'error');
+        $error->update(['error_message' => '<script>alert("erro")</script>']);
+
+        $this->reportComponent()->assertSee('MISS — resposta não atendida pelo cache')
+            ->assertSee('Cache não identificado')->assertSee('Isso não significa MISS')
+            ->call('openDetails', $error->id)
+            ->assertSee('<script>alert("erro")</script>')->assertDontSeeHtml('<script>alert("erro")</script>');
+    }
+
     private function reportComponent()
     {
         return Livewire::actingAs(User::factory()->create(['role' => 'n1']))->test(CheckReports::class);

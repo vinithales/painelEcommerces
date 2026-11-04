@@ -78,8 +78,11 @@
                             @endif
                         </td>
                         <td class="check-report__conditions">
-                            @if($execution?->error_message)<p class="check-report__error">{{ \Illuminate\Support\Str::limit($execution->error_message, 300) }}</p>@endif
-                            @if(isset($observed['cache_status']))<p>Cache: <strong>{{ $observed['cache_status'] }}</strong></p>@endif
+                            @if($execution?->status === 'error')
+                                <x-checks.error-feedback :message="$execution->error_message ?? ''" :snapshot="$execution->definition_snapshot ?? []" />
+                            @elseif(isset($observed['cache_status']))
+                                <x-checks.cache-feedback :observed="$observed" />
+                            @endif
                             @if(isset($observed['console_error_count']))<p>Console: {{ $observed['console_error_count'] }} erro(s) · JavaScript: {{ $observed['page_error_count'] ?? 0 }} exceção(ões)</p>@endif
                             @foreach($failedConditions as $condition)
                                 <div class="check-report__condition">

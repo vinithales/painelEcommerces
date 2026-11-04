@@ -101,7 +101,11 @@
                                 {{ $statusLabels[$row['status']] ?? $row['status'] }}
                             </span>
                         </div>
-                        @if($row['message'])<p class="{{ in_array($row['status'], ['failed', 'error'], true) ? 'execution-monitor__error' : 'muted' }}" @if(in_array($row['status'], ['failed', 'error'], true)) role="alert" @endif>{{ $row['message'] }}</p>@endif
+                        @if($row['status'] === 'error')
+                            <x-checks.error-feedback :message="$row['message'] ?? ''" :snapshot="$definition->only(['assertions'])" technical />
+                        @elseif($row['message'])
+                            <p class="{{ $row['status'] === 'failed' ? 'execution-monitor__error' : 'muted' }}">{{ $row['message'] }}</p>
+                        @endif
                         @if(isset($row['store_id']))
                             <a href="{{ route('stores.check-history', $row['store_id']) }}" wire:navigate>Ver histórico e detalhes</a>
                         @endif

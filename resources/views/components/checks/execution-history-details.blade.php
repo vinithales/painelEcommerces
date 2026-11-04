@@ -43,23 +43,21 @@
             <div><dt>Executor</dt><dd>{{ strtoupper($snapshot['executor_type'] ?? '—') }}</dd></div>
         </dl>
 
-        @if ($execution->error_message)
-            <div class="check-history__detail-error" role="alert">
-                <strong>Erro na execução</strong>
-                <p>{{ $execution->error_message }}</p>
-            </div>
+        @if ($execution->status === 'error' || $execution->error_message)
+            <x-checks.error-feedback :message="$execution->error_message ?? ''" :snapshot="$snapshot" technical />
         @endif
 
         <section class="check-history__detail-section" aria-labelledby="check-history-observed-title">
             <h3 id="check-history-observed-title">Resposta observada</h3>
             @if ($observed)
+                @if($execution->status === 'error')<p class="muted">Dados parciais coletados antes da interrupção. Eles não representam uma verificação concluída.</p>@endif
                 <dl class="check-history__facts">
                     <div><dt>Código HTTP</dt><dd>{{ $observed['status_code'] ?? '—' }}</dd></div>
                     <div><dt>Tempo de resposta</dt><dd>{{ isset($observed['response_time']) ? $observed['response_time'].' ms' : '—' }}</dd></div>
                     <div class="check-history__fact-wide"><dt>URL</dt><dd>{{ $observed['url'] ?? '—' }}</dd></div>
                 </dl>
                 @if(isset($observed['cache_status']))
-                    <p>Cache: <strong>{{ $observed['cache_status'] }}</strong> · Cabeçalho: {{ $observed['cache_header'] ?? 'Nenhum cabeçalho de cache reconhecido' }}</p>
+                    @if($execution->status !== 'error')<x-checks.cache-feedback :observed="$observed" />@endif
                 @endif
                 @if (array_key_exists('body', $observed) && $observed['body'] !== null && $observed['body'] !== '')
                     <details class="check-history__body-details">

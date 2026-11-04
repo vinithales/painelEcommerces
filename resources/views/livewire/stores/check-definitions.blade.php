@@ -4,6 +4,7 @@
             <h2>Verificação</h2>
             <p>Crie uma regra reutilizável e associe-a às lojas que devem executá-la.</p>
         </div>
+        <a class="btn btn-secondary" wire:navigate href="{{ route('stores.check-reports') }}">Relatórios e falhas</a>
         @can('manage')
             <button type="button" class="btn btn-primary" wire:click="create">Nova definição</button>
         @endcan
@@ -33,6 +34,7 @@
                     <th>Nível</th>
                     <th>Executor</th>
                     <th>Lojas associadas</th>
+                    <th>Últimos resultados</th>
                     <th>Ações</th>
                 </tr>
             </thead>
@@ -75,6 +77,19 @@
                             </div>
                         </td>
                         <td>
+                            @php
+                                $states = $definition->assignments->map(fn ($assignment) => $assignment->latestExecution?->reportStatus() ?? 'never')->countBy();
+                                $failures = ($states['failed'] ?? 0) + ($states['error'] ?? 0);
+                                $lastRun = $definition->assignments->map(fn ($assignment) => $assignment->latestStartedExecution?->started_at)->filter()->sortDesc()->first();
+                            @endphp
+                            <div class="definition-report">
+                                <a wire:navigate href="{{ route('stores.check-reports', ['definitionId' => $definition->id, 'status' => 'attention']) }}" class="check-history__status check-history__status--{{ $failures ? 'fail' : 'completed' }}">{{ $failures }} loja(s) com falha ou erro</a>
+                                <small class="muted">{{ $states['success'] ?? 0 }} sucesso · {{ ($states['pending'] ?? 0) + ($states['running'] ?? 0) }} em andamento · {{ $states['never'] ?? 0 }} sem execução</small>
+                                <small>Última vez que rodou: {{ $lastRun?->format('d/m/Y H:i:s') ?? 'Ainda não rodou' }}</small>
+                                <a wire:navigate href="{{ route('stores.check-reports', ['definitionId' => $definition->id]) }}">Ver relatório por loja</a>
+                            </div>
+                        </td>
+                        <td>
                             <div class="definition-actions">
                                 @php $canExecute = in_array($definition->executor_type, ['http', 'browser'], true) && $definition->assignments->contains('enabled', true); @endphp
                                 <button type="button" class="btn btn-secondary definition-run" wire:click="openExecution({{ $definition->id }})" wire:loading.attr="disabled" wire:target="openExecution" @disabled(!$canExecute) aria-label="Executar {{ $definition->name }}" aria-haspopup="dialog">
@@ -90,7 +105,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="empty">Nenhuma definição cadastrada.</td></tr>
+                    <tr><td colspan="6" class="empty">Nenhuma definição cadastrada.</td></tr>
                 @endforelse
             </tbody>
         </table>

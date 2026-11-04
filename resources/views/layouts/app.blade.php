@@ -11,6 +11,7 @@
 <nav class="sidebar__nav" aria-label="Navegação principal">
 <a wire:navigate href="{{ route('stores.index') }}" class="sidebar__link" title="Lojas"><x-icon name="store"/><span>Lojas</span></a>
 <a wire:navigate href="{{ route('stores.checks') }}" class="sidebar__link" title="Verificação"><x-icon name="check"/><span>Verificação</span></a>
+<a wire:navigate href="{{ route('stores.check-reports') }}" class="sidebar__link" title="Relatórios de verificações"><x-icon name="check"/><span>Relatórios de verificações</span></a>
 @can('configure')<a wire:navigate href="{{ route('stores.create') }}" class="sidebar__link" title="Adicionar loja"><x-icon/><span>Adicionar loja</span></a>@endcan
 @if(isset($store) && $store instanceof \App\Models\Store)
 <p class="sidebar__section-label">{{ $store->name }}</p>

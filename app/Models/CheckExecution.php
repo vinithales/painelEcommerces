@@ -31,4 +31,13 @@ class CheckExecution extends Model
     {
         return $this->belongsTo(CheckAssignment::class);
     }
+
+    public function reportStatus(): string
+    {
+        return match ($this->status) {
+            'completed' => in_array($this->outcome, ['success', 'passed'], true) ? 'success' : ($this->outcome === 'failed' ? 'failed' : 'unknown'),
+            'pending', 'running', 'error', 'failed' => $this->status,
+            default => 'unknown',
+        };
+    }
 }

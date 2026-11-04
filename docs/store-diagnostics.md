@@ -10,6 +10,14 @@ docker compose exec app php artisan checks:install-store-diagnostics --run
 
 `--run` enfileira uma execução inicial de cada verificação. Sem essa opção, apenas cadastra. As execuções seguintes usam o agendador existente. O painel permite executar novamente em uma, várias ou todas as lojas habilitadas, inclusive para o executor `browser`. Com `--run --executor=http` ou `--run --executor=browser`, limita a execucao inicial ao tipo informado.
 
+## Relatórios por verificação
+
+Abra **Relatórios de verificações** no menu lateral ou **Relatórios e falhas** na tela de verificações (`/stores/checks/reports`). Filtre por verificação, loja e resultado. Os cartões mostram o total de associações, falhas/erros, sucessos, execuções em andamento e associações sem execução; seguem os filtros de loja e verificação e permitem filtrar os resultados com um clique.
+
+Cada linha apresenta o resultado mais recente, as condições reprovadas com os valores esperado e observado (por exemplo, HIT e MISS), erros, a última execução iniciada e a próxima execução prevista. Uma nova execução na fila mantém o horário da última que realmente iniciou. Os detalhes completos abrem na própria página. Associações desabilitadas continuam visíveis, identificadas como desabilitadas. Horários seguem o fuso configurado na aplicação, indicado na tela. A página atualiza a cada 15 segundos.
+
+A lista de definições também mostra o resumo dos resultados, a última execução e um atalho direto para as lojas com falha ou erro daquela verificação. O relatório usa o último resultado de cada associação: uma falha antiga deixa de aparecer como atual após uma execução com sucesso; o histórico por loja continua disponível.
+
 ## Cache
 
 Sao tres GETs anonimos consecutivos a pagina inicial, seguindo redirecionamentos. Cada amostra registra status, URL final e cabecalhos. A ultima resposta precisa retornar HTTP 200 e `cache_status` igual a `HIT`. A deteccao escolhe o primeiro cabecalho presente nesta ordem: X-Cache, X-Magento-Cache-Debug, CF-Cache-Status, X-LiteSpeed-Cache, X-Proxy-Cache, X-Cache-Status. A origem fica em `cache_header`. Valores contendo MISS prevalecem sobre HIT; valores sem HIT/MISS ou sem cabecalho reconhecido produzem UNKNOWN e reprovam. Um primeiro MISS seguido de HIT e aceito. UNKNOWN indica falta de evidencia reconhecida, nao prova ausencia de qualquer camada de cache.

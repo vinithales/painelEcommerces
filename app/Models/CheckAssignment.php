@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -21,7 +22,7 @@ class CheckAssignment extends Model
     protected $casts = [
         'enabled' => 'boolean',
         'interval_minutes' => 'integer',
-        'next_run_at' => 'datetime',    
+        'next_run_at' => 'datetime',
     ];
 
     public function checkDefinition()
@@ -44,6 +45,34 @@ class CheckAssignment extends Model
         return $this->hasOne(CheckExecution::class)->latestOfMany();
     }
 
+    public function latestStartedExecution(): HasOne
+    {
+        return $this->hasOne(CheckExecution::class)->ofMany(['id' => 'max'], fn ($query) => $query->whereNotNull('started_at'));
+    }
+
+    public function scopeReportStatus(Builder $query, string $status): Builder
+    {
+        if ($status === 'never') {
+            return $query->whereDoesntHave('executions');
+        }
+
+        return $query->whereHas('latestExecution', function (Builder $execution) use ($status) {
+            match ($status) {
+                'attention' => $execution->where(function (Builder $result) {
+                    $result->whereIn('status', ['error', 'failed'])
+                        ->orWhere(fn ($completed) => $completed->where('status', 'completed')->where('outcome', 'failed'));
+                }),
+                'failed' => $execution->where(fn ($result) => $result->where('status', 'failed')
+                    ->orWhere(fn ($completed) => $completed->where('status', 'completed')->where('outcome', 'failed'))),
+                'error' => $execution->where('status', 'error'),
+                'success' => $execution->where('status', 'completed')->whereIn('outcome', ['success', 'passed']),
+                'active' => $execution->whereIn('status', ['pending', 'running']),
+                'pending', 'running' => $execution->where('status', $status),
+                default => $execution->whereRaw('1 = 0'),
+            };
+        });
+    }
+
     public function healthStatus(): string
     {
         return match (true) {
@@ -52,5 +81,4 @@ class CheckAssignment extends Model
             default => 'UNKNOWN',
         };
     }
-
 }

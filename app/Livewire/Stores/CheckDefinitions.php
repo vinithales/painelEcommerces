@@ -551,7 +551,11 @@ class CheckDefinitions extends Component
     public function render()
     {
         $definitions = CheckDefinition::query()
-            ->with(['assignments.store'])
+            ->with([
+                'assignments.store',
+                'assignments.latestExecution' => fn ($query) => $query->select('check_executions.id', 'check_executions.check_assignment_id', 'status', 'outcome', 'started_at'),
+                'assignments.latestStartedExecution' => fn ($query) => $query->select('check_executions.id', 'check_executions.check_assignment_id', 'started_at'),
+            ])
             ->withCount('assignments')
             ->when($this->search, fn ($query) => $query->where('name', 'like', '%'.$this->search.'%'))
             ->when($this->storeId, fn ($query) => $query->whereHas('assignments', fn ($assignment) => $assignment->where('store_id', $this->storeId)))

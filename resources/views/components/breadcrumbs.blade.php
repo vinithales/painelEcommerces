@@ -10,7 +10,7 @@
         'stores.api-logs' => 'Logs de API',
         'stores.diagnostics' => 'Diagnóstico',
         'stores.tools' => 'Ferramentas',
-        'stores.checks' => 'Verificações',
+        'stores.checks', 'stores.check-definitions' => 'Verificação',
         'stores.bulk-templates' => 'Modelos de edição',
         'login' => 'Entrar',
         default => $title ?? 'Operação',

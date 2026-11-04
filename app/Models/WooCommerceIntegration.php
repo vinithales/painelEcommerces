@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WooCommerceIntegration extends Model
 {
-    protected $hidden = ['consumer_key', 'consumer_secret'];
+    protected $hidden = ['consumer_key', 'consumer_secret', 'wp_username', 'wp_application_password'];
 
     use HasFactory;
 
@@ -18,11 +18,14 @@ class WooCommerceIntegration extends Model
         'store_id',
         'consumer_key',
         'consumer_secret',
+        'wp_username',
+        'wp_application_password',
     ];
 
     protected $casts = [
         'consumer_key' => 'encrypted',
         'consumer_secret' => 'encrypted',
+        'wp_application_password' => 'encrypted',
     ];
 
     public function store(): BelongsTo
@@ -35,6 +38,8 @@ class WooCommerceIntegration extends Model
         return array_filter([
             'consumer_key' => $this->consumer_key,
             'consumer_secret' => $this->consumer_secret,
+            'wp_username' => $this->wp_username,
+            'wp_application_password' => $this->wp_application_password,
         ]);
     }
 }

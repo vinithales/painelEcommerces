@@ -29,6 +29,8 @@ class PlatformApiAdapterFactory
                 storeUrl: $store->store_url,
                 consumerKey: $credentials['consumer_key'] ?? '',
                 consumerSecret: $credentials['consumer_secret'] ?? '',
+                wpUsername: $credentials['wp_username'] ?? null,
+                wpApplicationPassword: $credentials['wp_application_password'] ?? null,
             ),
             Store::PLATFORM_MAGENTO2 => new Magento2ApiAdapter(
                 storeUrl: $store->store_url,

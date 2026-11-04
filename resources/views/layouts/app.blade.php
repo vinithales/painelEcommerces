@@ -10,14 +10,15 @@
 <aside class="sidebar"><div class="sidebar__brand"><a wire:navigate href="{{ route('stores.index') }}" class="sidebar__logo" aria-label="BeaconHub ? in?cio"><x-brand-logo class="sidebar__logo-full"/><x-brand-logo symbol class="sidebar__logo-symbol"/></a><p>Operação e suporte</p></div>
 <nav class="sidebar__nav" aria-label="Navegação principal">
 <a wire:navigate href="{{ route('stores.index') }}" class="sidebar__link" title="Lojas"><x-icon name="store"/><span>Lojas</span></a>
-<a wire:navigate href="{{ route('stores.checks') }}" class="sidebar__link" title="Verificações"><x-icon name="check"/><span>Verificações</span></a>
+<a wire:navigate href="{{ route('stores.checks') }}" class="sidebar__link" title="Verificação"><x-icon name="check"/><span>Verificação</span></a>
+<a wire:navigate href="{{ route('stores.check-reports') }}" class="sidebar__link" title="Relatórios de verificações"><x-icon name="check"/><span>Relatórios de verificações</span></a>
 @can('configure')<a wire:navigate href="{{ route('stores.create') }}" class="sidebar__link" title="Adicionar loja"><x-icon/><span>Adicionar loja</span></a>@endcan
 @if(isset($store) && $store instanceof \App\Models\Store)
 <p class="sidebar__section-label">{{ $store->name }}</p>
 @foreach(['overview'=>'Visão geral','products'=>'Produtos','orders'=>'Pedidos','api-logs'=>'Logs de API','diagnostics'=>'Diagnóstico','tools'=>'Ferramentas'] as $path=>$label)
 <a wire:navigate href="{{ route('stores.'.$path,$store) }}" class="sidebar__link" title="{{ $label }}"><x-icon :name="$path"/><span>{{ $label }}</span></a>
 @endforeach
-<a wire:navigate href="{{ route('stores.checks',['storeId'=>$store->id]) }}" class="sidebar__link"><x-icon name="check"/><span>Verificações da loja</span></a>
+<a wire:navigate href="{{ route('stores.check-history', $store) }}" class="sidebar__link" title="Histórico de verificações"><x-icon name="check"/><span>Histórico de verificações</span></a>
 @can('configure')<a wire:navigate href="{{ route('stores.edit',$store) }}" class="sidebar__link"><x-icon name="settings"/><span>Configurações</span></a>@endcan
 @endif
 </nav></aside>

@@ -2,7 +2,6 @@
 
 namespace App\Console;
 
-use App\Models\StoreCheckRun;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -13,8 +12,17 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('checks:dispatch')->everyMinute()->withoutOverlapping();
-        $schedule->call(fn () => StoreCheckRun::where('created_at', '<', now()->subDays(config('operations.retention_days')))->delete())->daily();
+        $schedule->command('checks:dispatch-due')
+        ->everyMinute()
+        ->withoutOverlapping();
+
+        $schedule->command('checks:recover-abandoned')
+            ->everyMinute()
+            ->withoutOverlapping();
+        
+        $schedule->command('checks:clean-execution-results')
+            ->dailyAt('03:00')
+            ->withoutOverlapping();
     }
 
     /**

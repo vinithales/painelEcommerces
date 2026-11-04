@@ -2,10 +2,15 @@
 
 namespace Tests\Unit\PlatformApi;
 
+use App\Models\Store;
 use App\Services\PlatformApi\Adapters\Magento2ApiAdapter;
+use App\Services\PlatformApi\ProductFields;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
+use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Tests\TestCase;
 
@@ -95,7 +100,7 @@ class Magento2ApiAdapterTest extends TestCase
         $history = [];
         $mock = new MockHandler([new Response(200, [], json_encode($raw))]);
         $stack = HandlerStack::create($mock);
-        $stack->push(\GuzzleHttp\Middleware::history($history));
+        $stack->push(Middleware::history($history));
 
         $adapter = new Magento2ApiAdapter(
             storeUrl: 'https://m2.example.com',
@@ -119,9 +124,60 @@ class Magento2ApiAdapterTest extends TestCase
         $this->expectExceptionMessageMatches('/Magento 2 API error/');
 
         $adapter = $this->makeAdapter([
-            new \GuzzleHttp\Exception\ConnectException('Connection refused', new \GuzzleHttp\Psr7\Request('GET', 'test')),
+            new ConnectException('Connection refused', new Request('GET', 'test')),
         ]);
 
         $adapter->listProducts([], 1, 10);
+    }
+
+    public function test_image_attributes_are_translated_to_media_gallery_entries(): void
+    {
+        $payload = ProductFields::payload('magento2', ['images' => [[
+            'id' => 709,
+            'src' => 'https://m2.example.com/media/catalog/product/m/j/image.jpg',
+            'name' => 'image.jpg',
+            'alt' => 'Imagem principal',
+            'position' => 1,
+            'disabled' => false,
+            'types' => ['image', 'small_image', 'thumbnail'],
+            'media_type' => 'image',
+            'file' => '/m/j/image.jpg',
+            'date_created' => null,
+        ]]]);
+
+        $this->assertArrayNotHasKey('images', $payload);
+        $this->assertSame([[
+            'id' => 709,
+            'media_type' => 'image',
+            'label' => 'Imagem principal',
+            'position' => 1,
+            'disabled' => false,
+            'types' => ['image', 'small_image', 'thumbnail'],
+            'file' => '/m/j/image.jpg',
+        ]], $payload['media_gallery_entries']);
+    }
+
+    public function test_magento_extension_image_roles_are_preserved(): void
+    {
+        $store = new Store(['platform' => Store::PLATFORM_MAGENTO2]);
+        $images = [[
+            'id' => 710,
+            'src' => 'https://m2.example.com/media/catalog/product/m/j/image.jpg',
+            'name' => 'image.jpg',
+            'alt' => 'Imagem secundária',
+            'position' => 2,
+            'disabled' => false,
+            'types' => ['swatch_image', 'amasty_conf_flipper_image', 'flipper_img'],
+            'media_type' => 'image',
+            'file' => '/m/j/image.jpg',
+            'date_created' => null,
+        ]];
+
+        $validated = ProductFields::validate($store, ['images' => $images]);
+
+        $this->assertSame(
+            ['swatch_image', 'amasty_conf_flipper_image', 'flipper_img'],
+            $validated['images'][0]['types']
+        );
     }
 }

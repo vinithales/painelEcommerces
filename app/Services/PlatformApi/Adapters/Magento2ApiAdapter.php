@@ -158,6 +158,53 @@ class Magento2ApiAdapter implements PlatformApiAdapter
         ];
     }
 
+    public function productAttributeSets(): array
+    {
+        $sets = $this->request('GET', 'eav/attribute-sets/list', ['query' => [
+            'searchCriteria[pageSize]' => 100,
+            'searchCriteria[currentPage]' => 1,
+            'searchCriteria[filterGroups][0][filters][0][field]' => 'entity_type_id',
+            'searchCriteria[filterGroups][0][filters][0][value]' => 4,
+            'searchCriteria[filterGroups][0][filters][0][conditionType]' => 'eq',
+        ]])['body']['items'] ?? [];
+
+        return array_values(array_filter($sets, static fn (array $set): bool =>
+            (int) ($set['entity_type_id'] ?? 0) === 4 && (int) ($set['attribute_set_id'] ?? 0) > 0
+        ));
+    }
+
+    public function createProduct(array $attributes, array $images = []): array
+    {
+        $attributes = ProductFields::payload('magento2', $attributes);
+        $attributes['type_id'] = 'simple';
+        $raw = $this->request('POST', 'products', ['json' => ['product' => $attributes]])['body'];
+        $imageErrors = [];
+
+        foreach ($images as $position => $image) {
+            try {
+                $this->request('POST', 'products/'.rawurlencode($raw['sku']).'/media', ['json' => [
+                    'entry' => [
+                        'media_type' => 'image',
+                        'label' => ($image['label'] ?? '') ?: ($image['alt'] ?: $image['name']),
+                        'position' => ($image['position'] ?? '') ?: $position + 1,
+                        'disabled' => (bool) ($image['disabled'] ?? false),
+                        'types' => ($image['role'] ?? ($position === 0 ? 'principal' : 'galeria')) === 'principal'
+                            ? ['image', 'small_image', 'thumbnail'] : [],
+                        'content' => [
+                            'base64EncodedData' => base64_encode($image['contents']),
+                            'type' => $image['mime'],
+                            'name' => $image['filename'],
+                        ],
+                    ],
+                ]]);
+            } catch (\Throwable $e) {
+                $imageErrors[] = $image['name'].': '.\App\Support\Redactor::clean($e->getMessage());
+            }
+        }
+
+        return ['data' => $this->normalizeProduct($raw), 'raw' => $raw, 'image_errors' => $imageErrors];
+    }
+
     public function updateProduct(string $id, array $attributes): array
     {
         $id = rawurlencode($id);

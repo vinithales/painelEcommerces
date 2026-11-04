@@ -3,16 +3,17 @@
 @include('livewire.stores.partials.dashboard')
 <div class="toolbar"><label>Buscar<input type="search" wire:model.live.debounce.300ms="search" placeholder="Nome, domínio ou prefixo"></label>
 <label>Plataforma<select wire:model.live="platform"><option value="all">Todas</option><option value="woocommerce">WooCommerce</option><option value="magento2">Magento 2</option></select></label></div>
-<div class="card table-wrap"><table class="data-table"><thead><tr><th>Loja</th><th>Plataforma / gateways</th><th>API</th><th>Servidor</th><th>Alertas</th><th>Último check</th><th>Ações</th></tr></thead><tbody>
+<div class="card table-wrap"><table class="data-table"><thead><tr><th>Loja</th><th>Plataforma / gateways</th><th>API</th><th>Servidor</th><th>Falhas</th><th>Última execução</th><th>Ações</th></tr></thead><tbody>
 @forelse($stores as $store)
 @php
-$active=$store->checks->where('enabled',true);
-$api=$active->where('level','API')->sortByDesc('last_run_at')->first()?->last_status??'UNKNOWN';
-$server=$store->serverConnection?($active->where('level','SERVER')->sortByDesc('last_run_at')->first()?->last_status??'UNKNOWN'):'Não configurado';
+$active=$store->checkAssignments->where('enabled',true);
+$api=$active->filter(fn ($assignment) => $assignment->checkDefinition?->level === 'API')->sortByDesc(fn ($assignment) => $assignment->latestExecution?->created_at)->first()?->healthStatus()??'UNKNOWN';
+$server=$store->serverConnection?($active->filter(fn ($assignment) => $assignment->checkDefinition?->level === 'SERVER')->sortByDesc(fn ($assignment) => $assignment->latestExecution?->created_at)->first()?->healthStatus()??'UNKNOWN'):'Não configurado';
+$lastExecution=$active->pluck('latestExecution')->filter()->sortByDesc('created_at')->first();
 @endphp
 <tr wire:key="store-{{ $store->id }}"><td><a wire:navigate href="{{ route('stores.overview',$store) }}"><strong>{{ $store->name }}</strong></a><p class="muted">{{ parse_url($store->store_url,PHP_URL_HOST) }}</p></td>
 <td><span class="platform-pill platform-pill--{{ $store->platform }}">{{ $store->isMagento2()?'Magento 2':'WooCommerce' }}</span><p>{{ $store->payment_gateway??'—' }} · {{ $store->shipping_gateway??'—' }}</p></td>
-<td><span class="badge badge-{{ $api }}">{{ $api }}</span></td><td><span class="badge badge-{{ $server }}">{{ $server }}</span></td><td>{{ $active->whereNotNull('alert_status')->count() }}</td><td>{{ $active->max('last_run_at')??'Ainda sem checks' }}</td>
+<td><span class="badge badge-{{ $api }}">{{ $api }}</span></td><td><span class="badge badge-{{ $server }}">{{ $server }}</span></td><td>{{ $active->filter(fn ($assignment) => $assignment->healthStatus() === 'CRITICAL')->count() }}</td><td>{{ $lastExecution?->created_at?->format('d/m/Y H:i') ?? 'Ainda sem execuções' }}</td>
 <td>@include('livewire.stores.partials.actions')</td></tr>
 @empty<tr><td colspan="7" class="empty">Nenhuma loja encontrada.</td></tr>@endforelse
 </tbody></table></div>{{ $stores->links() }}

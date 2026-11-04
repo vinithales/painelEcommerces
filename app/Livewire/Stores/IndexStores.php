@@ -46,7 +46,7 @@ class IndexStores extends Component
     public function render()
     {
         $stores = Store::query()
-            ->with(['checks', 'serverConnection'])
+            ->with(['checkAssignments.checkDefinition', 'checkAssignments.latestExecution', 'serverConnection'])
             ->when($this->search !== '', function ($query) {
                 $query->where(function ($innerQuery) {
                     $innerQuery

@@ -38,10 +38,10 @@ class PublicHttpClient
         return [$host, $p['port'] ?? ($p['scheme'] === 'https' ? 443 : 80), $addresses[0]];
     }
 
-    public function fetch(string $url, string $method = 'GET', int $timeout = 10, bool $redirects = false, array $headers = []): array
+    public function fetch(string $url, string $method = 'GET', int $timeout = 10, bool $redirects = false, array $headers = [], ?int $maxBytes = null): array
     {
         $start = microtime(true);
-        $max = (int) config('operations.max_response_bytes', 1048576);
+        $max = $maxBytes ?? (int) config('operations.max_response_bytes', 1048576);
         for ($hop = 0; $hop < 6; $hop++) {
             [$host, $port, $ip] = $this->address($url);
             $remaining = $timeout - (microtime(true) - $start);

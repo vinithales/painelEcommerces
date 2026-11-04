@@ -34,6 +34,10 @@ class StoreForm extends Form
 
     public string $password = '';
 
+    public string $wp_username = '';
+
+    public string $wp_application_password = '';
+
     protected function rules(): array
     {
         $existing = $this->store && $this->store->platform === $this->platform;
@@ -51,6 +55,8 @@ class StoreForm extends Form
             'access_token_secret' => [$existing || $this->platform !== Store::PLATFORM_MAGENTO2 || ($this->username && $this->password) ? 'nullable' : 'required', 'string', 'max:255'],
             'username' => ['nullable', 'string', 'max:255'],
             'password' => ['nullable', 'string', 'max:255'],
+            'wp_username' => ['nullable', 'string', 'max:255'],
+            'wp_application_password' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -84,7 +90,7 @@ class StoreForm extends Form
             'shipping_gateway' => $store->shipping_gateway ?? '',
         ]);
 
-        foreach (['consumer_key', 'consumer_secret', 'access_token', 'access_token_secret', 'username', 'password'] as $field) {
+        foreach (['consumer_key', 'consumer_secret', 'access_token', 'access_token_secret', 'username', 'password', 'wp_username', 'wp_application_password'] as $field) {
             $this->$field = '';
         }
     }
@@ -107,6 +113,8 @@ class StoreForm extends Form
             return [
                 'consumer_key' => $this->consumer_key,
                 'consumer_secret' => $this->consumer_secret,
+                'wp_username' => $this->nullIfBlank($this->wp_username),
+                'wp_application_password' => $this->nullIfBlank($this->wp_application_password),
             ];
         }
 

@@ -42,7 +42,7 @@ class ProductWorkflowTest extends TestCase
 
     private function product(string $price = '10'): array
     {
-        return ['id' => 1, 'sku' => 'SKU-1', 'name' => 'Produto', 'price' => $price, 'regular_price' => $price, 'status' => 'publish', 'weight' => '1.2', 'images' => [['src' => 'https://example.com/image.jpg']], 'permalink' => 'https://example.com/product/1'];
+        return ['id' => 1, 'sku' => 'SKU-1', 'name' => 'Produto', 'price' => $price, 'regular_price' => $price, 'status' => 'publish', 'weight' => '1.2', 'images' => [['id' => 81, 'src' => 'https://example.com/image.jpg', 'name' => 'Imagem frontal', 'alt' => 'Frente azul']], 'permalink' => 'https://example.com/product/1'];
     }
 
     public function test_preview_never_writes_and_shows_only_changed_fields(): void
@@ -109,5 +109,52 @@ class ProductWorkflowTest extends TestCase
         $this->fake([array_replace($this->product('8'), ['regular_price' => '10', 'sale_price' => '8'])], $history);
         $preview = app(UpdateProductAction::class)->execute($this->store(), '1', ['price' => '15'], true);
         $this->assertSame('10', $preview['diff']['price']['from']);
+    }
+
+    public function test_image_attributes_are_displayed_and_can_be_updated(): void
+    {
+        $history = [];
+        $updated = $this->product();
+        $updated['images'][0]['name'] = 'Frente atualizada';
+        $updated['images'][0]['alt'] = 'Camiseta azul vista de frente';
+        $this->fake([$this->product(), $this->product(), $updated, $updated], $history);
+
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->test(StoreProducts::class, ['store' => $this->store()])
+            ->call('openDetail', '1')
+            ->assertSee('ALT: Frente azul')
+            ->assertSee('Nome: Imagem frontal')
+            ->assertSee('Editar atributos')
+            ->set('draft.images.0.name', 'Frente atualizada')
+            ->set('draft.images.0.alt', 'Camiseta azul vista de frente')
+            ->call('saveDetail')
+            ->assertHasNoErrors()
+            ->assertSee('ALT: Camiseta azul vista de')
+            ->assertSee('Nome: Frente atualizada');
+
+        $payload = json_decode((string) $history[2]['request']->getBody(), true);
+        $this->assertSame([[
+            'name' => 'Frente atualizada',
+            'alt' => 'Camiseta azul vista de frente',
+            'id' => 81,
+        ]], $payload['images']);
+    }
+
+    public function test_drawer_closes_and_keeps_the_error_visible_when_an_update_fails(): void
+    {
+        $history = [];
+        $this->fake([$this->product()], $history);
+
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->test(StoreProducts::class, ['store' => $this->store()])
+            ->call('openDetail', '1')
+            ->set('draft.images.0.id', null)
+            ->set('draft.images.0.src', null)
+            ->set('draft.images.0.alt', 'Texto alterado')
+            ->call('saveDetail')
+            ->assertSet('selectedKey', null)
+            ->assertSet('detail', [])
+            ->assertHasErrors('edit')
+            ->assertSee('A imagem precisa de um ID ou URL válida.');
     }
 }

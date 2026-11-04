@@ -17,8 +17,17 @@ x-app-environment: &app-environment
   MAIL_MAILER: smtp
   MAIL_HOST: mailpit
   MAIL_PORT: 1025
+  BROWSER_CHECK_TOKEN: ${APP_KEY}
 
 services:
+  browser:
+    build: ./browser
+    environment:
+      BROWSER_CHECK_TOKEN: ${APP_KEY}
+    init: true
+    shm_size: 256mb
+    restart: unless-stopped
+
   app:
     build:
       context: .
@@ -38,7 +47,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8000') === false ? 1 : 0);"]
+      test: [ "CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8000') === false ? 1 : 0);" ]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -48,7 +57,7 @@ services:
   queue:
     build:
       context: .
-    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=120"]
+    command: [ "php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=120" ]
     environment:
       <<: *app-environment
       WAIT_FOR_DB: "true"
@@ -66,7 +75,7 @@ services:
   scheduler:
     build:
       context: .
-    command: ["php", "artisan", "schedule:work"]
+    command: [ "php", "artisan", "schedule:work" ]
     environment:
       <<: *app-environment
       WAIT_FOR_DB: "true"
@@ -84,7 +93,7 @@ services:
   vite:
     image: node:22-alpine
     working_dir: /var/www/html
-    command: ["sh", "-c", "npm ci && npm run dev -- --host 0.0.0.0"]
+    command: [ "sh", "-c", "npm ci && npm run dev -- --host 0.0.0.0" ]
     environment:
       CHOKIDAR_USEPOLLING: "true"
       VITE_HMR_HOST: localhost
@@ -108,13 +117,24 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_ROOT_PASSWORD:-root}"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_ROOT_PASSWORD:-root}" ]
       interval: 5s
       timeout: 5s
       retries: 20
       start_period: 20s
     restart: unless-stopped
 
+  phpmyadmin:
+    image: phpmyadmin:5
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
   mailpit:
     image: axllent/mailpit:latest
     ports:

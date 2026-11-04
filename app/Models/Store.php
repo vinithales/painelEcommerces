@@ -5,15 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use InvalidArgumentException;
 
 class Store extends Model
 {
-    public function checks()
-    {
-        return $this->hasMany(StoreCheck::class);
-    }
-
     public function serverConnection()
     {
         return $this->hasOne(ServerConnection::class);
@@ -108,4 +104,15 @@ class Store extends Model
     {
         return $this->integration()?->credentials() ?? [];
     }
+
+    public function checkAssignments(): HasMany
+    {
+        return $this->hasMany(CheckAssignment::class);
+    }
+
+    public function checkExecutions()
+    {
+        return $this->hasManyThrough(CheckExecution::class, CheckAssignment::class);
+    }
+
 }

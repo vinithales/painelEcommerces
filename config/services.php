@@ -31,15 +31,4 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    'mailtrap' => [
-        'token' => env('MAILTRAP_API_KEY'),
-    ],
-
-    'integration_checks' => [
-        'timeout' => env('INTEGRATION_CHECKS_TIMEOUT', 10),
-        'verify_ssl' => env('INTEGRATION_CHECKS_VERIFY_SSL', true),
-        'verify_ssl_local' => env('INTEGRATION_CHECKS_VERIFY_SSL_LOCAL', false),
-        'ca_bundle' => env('INTEGRATION_CHECKS_CA_BUNDLE'),
-    ],
-
 ];

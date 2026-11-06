@@ -29,6 +29,17 @@ class CheckDefinitionService
         });
     }
 
+    public function delete(CheckDefinition $definition): void
+    {
+        if ($definition->assignments()->whereHas('executions')->exists()) {
+            throw ValidationException::withMessages([
+                'definition' => 'Uma definição com execuções não pode ser removida. Desabilite-a para preservar o histórico.',
+            ]);
+        }
+
+        $definition->delete();
+    }
+
     private function validateAssignments(array $assignments): array
     {
         return Validator::make(

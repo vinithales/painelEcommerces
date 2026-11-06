@@ -375,6 +375,119 @@ class CheckDefinitionsManagementTest extends TestCase
             ->assertSet('name', 'Monitoramento em etapas');
     }
 
+    public function test_step_navigation_validates_skipped_steps_and_preserves_values(): void
+    {
+        $component = Livewire::actingAs($this->user('admin'))
+            ->test(CheckDefinitions::class)
+            ->call('create')
+            ->call('goToStep', 4)
+            ->assertHasErrors(['name'])
+            ->assertSet('formStep', 1)
+            ->set('name', 'Navegação pelas etapas')
+            ->set('httpConfiguration.path', 'invalido')
+            ->call('goToStep', 4)
+            ->assertHasErrors(['configuration.path'])
+            ->assertSet('formStep', 2)
+            ->set('httpConfiguration.path', '/health')
+            ->set('assertions.0.expected', 'abc')
+            ->call('goToStep', 4)
+            ->assertHasErrors(['assertions.0.expected'])
+            ->assertSet('formStep', 3)
+            ->call('goToStep', 1)
+            ->assertHasNoErrors()
+            ->assertSet('formStep', 1)
+            ->assertSet('httpConfiguration.path', '/health')
+            ->set('assertions.0.expected', '200')
+            ->call('goToStep', 4)
+            ->assertHasNoErrors()
+            ->assertSet('formStep', 4)
+            ->assertSet('name', 'Navegação pelas etapas')
+            ->assertSet('formOpen', true);
+
+        $component->call('goToStep', 0)->assertSet('formStep', 4)
+            ->call('goToStep', 5)->assertSet('formStep', 4);
+
+        Livewire::actingAs($this->user('n1'))
+            ->test(CheckDefinitions::class)
+            ->call('goToStep', 2)
+            ->assertForbidden();
+    }
+
+    public function test_disabling_a_definition_clears_all_schedules_and_preserves_history(): void
+    {
+        $data = [
+            'name' => 'Verificação para desabilitar',
+            'level' => 'SITE',
+            'executor_type' => 'http',
+            'configuration' => ['path' => '/', 'method' => 'GET', 'timeout' => 10, 'follow_redirects' => false],
+            'assertions' => [['field' => 'status_code', 'operator' => 'equals', 'expected' => 200]],
+        ];
+        $service = app(CheckDefinitionService::class);
+        $definition = $service->save(null, $data, [
+            ['store_id' => $this->store('Primeira loja')->id, 'interval_minutes' => 5, 'enabled' => true],
+            ['store_id' => $this->store('Segunda loja')->id, 'interval_minutes' => 30, 'enabled' => true],
+        ]);
+        $other = $service->save(null, array_replace($data, ['name' => 'Outra verificação']), [
+            ['store_id' => $definition->assignments->first()->store_id, 'interval_minutes' => 10, 'enabled' => true],
+        ]);
+        $assignment = $definition->assignments->first();
+        $execution = CheckExecution::create([
+            'check_assignment_id' => $assignment->id,
+            'status' => 'completed',
+            'outcome' => 'passed',
+            'result' => ['status_code' => 200],
+        ]);
+        $history = $execution->refresh()->getAttributes();
+        $otherSchedule = $other->assignments->first()->next_run_at;
+
+        $component = Livewire::actingAs($this->user('n2'))
+            ->test(CheckDefinitions::class)
+            ->call('disable', $definition->id)
+            ->assertHasNoErrors();
+
+        foreach ($definition->assignments as $item) {
+            $this->assertFalse($item->refresh()->enabled);
+            $this->assertNull($item->next_run_at);
+        }
+        $this->assertSame(2, $definition->assignments()->count());
+        $this->assertSame($history, $execution->refresh()->getAttributes());
+        $this->assertDatabaseHas('check_definitions', ['id' => $definition->id]);
+        $this->assertTrue($other->assignments->first()->refresh()->enabled);
+        $this->assertTrue($otherSchedule->equalTo($other->assignments->first()->next_run_at));
+        $this->assertNull(app(\App\Services\Checks\CheckExecutionService::class)->run($assignment->refresh()));
+        $this->assertSame(1, CheckExecution::count());
+
+        $component->call('disable', $definition->id)->assertHasNoErrors();
+        $this->assertSame(2, $definition->assignments()->count());
+    }
+
+    public function test_operator_cannot_disable_a_definition(): void
+    {
+        $definition = CheckDefinition::create([
+            'name' => 'Verificação protegida',
+            'level' => 'SITE',
+            'executor_type' => 'http',
+            'configuration' => [],
+            'assertions' => [],
+        ]);
+        $assignment = CheckAssignment::create([
+            'check_definition_id' => $definition->id,
+            'store_id' => $this->store('Loja protegida')->id,
+            'interval_minutes' => 5,
+            'enabled' => true,
+            'next_run_at' => now()->addMinutes(5),
+        ]);
+
+        Livewire::actingAs($this->user('n1'))
+            ->test(CheckDefinitions::class)
+            ->assertDontSeeHtml('wire:click="disable('.$definition->id.')"')
+            ->call('disable', $definition->id)
+            ->assertForbidden();
+
+        $this->assertTrue($assignment->refresh()->enabled);
+        $this->assertNotNull($assignment->next_run_at);
+    }
+
     private function store(string $name): Store
     {
         return Store::create([

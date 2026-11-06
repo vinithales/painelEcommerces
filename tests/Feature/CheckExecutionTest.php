@@ -58,6 +58,29 @@ class CheckExecutionTest extends TestCase
         $this->assertDatabaseHas('check_executions', ['id' => $execution->id, 'status' => 'completed']);
     }
 
+    public function test_api_posts_json_and_checks_a_numeric_field_in_the_response(): void
+    {
+        $assignment = $this->createAssignment(['executor_type' => 'api']);
+        $assignment->store->update(['store_url' => 'https://93.184.216.34']);
+        $assignment->checkDefinition->update([
+            'configuration' => ['path' => '/health', 'timeout' => 10, 'method' => 'POST', 'payload' => '{"probe":true}', 'json_path' => 'queue.depth', 'header_lines' => 'Accept-Language: pt-BR'],
+            'assertions' => [['field' => 'json_number', 'operator' => 'less_than', 'expected' => 10]],
+        ]);
+        \Illuminate\Support\Facades\Http::fake(['*' => \Illuminate\Support\Facades\Http::response(['queue' => ['depth' => 4]])]);
+        $execution = app(CheckExecutionService::class)->run($assignment);
+        $this->assertSame('success', $execution->outcome, $execution->error_message ?? '');
+        $this->assertSame('4', $execution->result['observed']['body']);
+        \Illuminate\Support\Facades\Http::assertSent(fn ($request) => $request->method() === 'POST'
+            && $request->hasHeader('accept-language', 'pt-BR') && $request->url() === 'https://93.184.216.34/health' && $request->body() === '{"probe":true}');
+    }
+
+    public function test_ssh_without_a_store_connection_records_an_actionable_error(): void
+    {
+        $execution = app(CheckExecutionService::class)->run($this->createAssignment(['executor_type' => 'ssh']));
+        $this->assertSame('error', $execution->status);
+        $this->assertStringContainsString('conexão SSH', $execution->error_message);
+    }
+
     public function test_it_rejects_unsupported_executor_before_creating_execution(): void
     {
         $assignment = $this->createAssignment(['executor_type' => 'smtp']);

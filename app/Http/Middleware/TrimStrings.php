@@ -16,4 +16,13 @@ class TrimStrings extends Middleware
         'password',
         'password_confirmation',
     ];
+
+    protected function transform($key, $value)
+    {
+        if ($key === 'ssh_password' || str_ends_with($key, '.ssh_password')) {
+            return $value;
+        }
+
+        return parent::transform($key, $value);
+    }
 }

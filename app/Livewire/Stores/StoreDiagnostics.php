@@ -20,6 +20,8 @@ class StoreDiagnostics extends Component
 {
     public Store $store;
 
+    public array $ssh = ['host' => '', 'port' => 22, 'user' => '', 'host_key' => '', 'private_key' => ''];
+
     public string $endpoint = '';
 
     public string $token = '';
@@ -53,6 +55,11 @@ class StoreDiagnostics extends Component
     public function mount(Store $store): void
     {
         $this->store = $store;
+        if (Gate::allows('configure')) {
+            $this->ssh['host'] = $store->ssh_ip ?? '';
+            $this->ssh['user'] = $store->ssh_user ?? '';
+            $this->ssh = array_replace($this->ssh, array_diff_key($store->ssh_profile ?? [], ['private_key' => true]));
+        }
         $this->endpoint = $store->serverConnection?->endpoint ?? '';
     }
 
@@ -61,6 +68,28 @@ class StoreDiagnostics extends Component
         $this->logText = '';
         $this->cursor = null;
         $this->taskKey = null;
+    }
+
+    public function saveSsh(): void
+    {
+        Gate::authorize('configure');
+        $validated = $this->validate([
+            'ssh' => 'required|array:host,port,user,host_key,private_key',
+            'ssh.host' => ['required', 'string', 'max:253', filter_var($this->ssh['host'] ?? '', FILTER_VALIDATE_IP) ? 'ip' : 'regex:/^[a-z0-9][a-z0-9.-]*$/iD'],
+            'ssh.port' => 'required|integer|between:1,65535',
+            'ssh.user' => ['required', 'max:64', 'regex:/^[a-z_][a-z0-9_-]*$/iD'],
+            'ssh.host_key' => ['required', 'max:4096', 'regex:~^(?:ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)) [A-Za-z0-9+/]+=*$~D'],
+            'ssh.private_key' => ['nullable', 'string', 'max:16384'],
+        ])['ssh'];
+        $validated['private_key'] = ($validated['private_key'] ?? null) ?: ($this->store->ssh_profile['private_key'] ?? null);
+        if (! $validated['private_key'] && ! $this->store->hasSshPasswordFor($validated['host'], $validated['user'])) {
+            throw ValidationException::withMessages(['ssh.private_key' => 'Informe a chave privada ou cadastre uma senha SSH para este IP e usuário na edição da loja.']);
+        }
+        $this->store->ssh_profile = $validated;
+        $this->store->save();
+        $this->ssh['private_key'] = '';
+        AuditEvent::record($this->store->id, 'server', 'configure', ['driver' => 'ssh']);
+        session()->flash('status', 'Conexão SSH salva.');
     }
 
     public function saveConnection(): void

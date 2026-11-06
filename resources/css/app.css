@@ -844,3 +844,11 @@ pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:450px;overflow:auto;
 .product-create__image-options .product-create__checkbox { margin: 0 0 10px; }
 .product-create__footer { display: flex; justify-content: flex-end; gap: 10px; padding: 4px 0 24px; }
 @media (max-width: 760px) { .product-create__grid, .product-create__row, .product-create__image-row, .product-create__image-options { grid-template-columns: 1fr; } .product-create__image-options { grid-column: 1; } .product-create__footer { flex-wrap: wrap; } }
+
+.definition-form textarea.definition-script-editor {
+    font-family: ui-monospace, Consolas, monospace;
+    line-height: 1.6;
+    tab-size: 4;
+    white-space: pre;
+    overflow-x: auto;
+}

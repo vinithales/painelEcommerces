@@ -18,6 +18,21 @@ class CheckDefinitionsManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_manager_can_build_and_reuse_an_ssh_script(): void
+    {
+        $wizard = Livewire::actingAs($this->user('n2'))->test(CheckDefinitions::class)
+            ->call('create')->set('name', 'Disco da loja')->set('executorType', 'ssh')
+            ->call('nextStep')->assertSee('Biblioteca de scripts')
+            ->set('scriptSource', 'disco')->call('useScript')
+            ->assertSet('sshConfiguration.script', 'df -hP /')->call('nextStep')
+            ->assertSee('Código de saída do script')->call('nextStep')->call('save')->assertHasNoErrors();
+        $saved = CheckDefinition::where('name', 'Disco da loja')->firstOrFail();
+        $this->assertSame(0, $saved->assertions[0]['expected']);
+        $wizard->call('create')->set('name', 'Outra loja')->set('executorType', 'ssh')
+            ->call('nextStep')->set('scriptSource', (string) $saved->id)->call('useScript')
+            ->assertSet('sshConfiguration.script', 'df -hP /');
+    }
+
     public function test_admin_creates_a_definition_and_associates_it_with_stores(): void
     {
         $firstStore = $this->store('Loja principal');

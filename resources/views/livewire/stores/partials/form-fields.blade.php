@@ -50,6 +50,28 @@
 
     <section class="panel panel--form">
         <div class="panel__header">
+            <h2>Acesso SSH (opcional)</h2>
+            <p>Com IP, usuário e senha, as verificações usam a porta 22 e memorizam a chave do servidor no primeiro acesso. Para definir outra porta ou uma chave de confiança, use Diagnóstico.</p>
+        </div>
+        <div class="field-grid">
+            <label class="field"><span>IP do servidor</span>
+                <input type="text" wire:model="form.ssh_ip" placeholder="IPv4 ou IPv6">
+                @error('form.ssh_ip') <small class="field__error">{{ $message }}</small> @enderror
+            </label>
+            <label class="field"><span>Usuário SSH</span>
+                <input type="text" wire:model="form.ssh_user" autocomplete="off">
+                @error('form.ssh_user') <small class="field__error">{{ $message }}</small> @enderror
+            </label>
+            <label class="field"><span>Senha SSH</span>
+                <input type="password" wire:model="form.ssh_password" autocomplete="new-password">
+                @if($form->store)<small>Deixe em branco para manter a senha cadastrada.</small>@endif
+                @error('form.ssh_password') <small class="field__error">{{ $message }}</small> @enderror
+            </label>
+        </div>
+    </section>
+
+    <section class="panel panel--form">
+        <div class="panel__header">
             <span class="eyebrow">Credenciais de integração</span>
             <h2>{{ $form->platform === 'woocommerce' ? 'Chaves do WooCommerce' : 'Tokens do Magento 2' }}</h2>
             <p>

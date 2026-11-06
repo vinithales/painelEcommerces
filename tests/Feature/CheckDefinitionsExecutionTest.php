@@ -120,7 +120,7 @@ class CheckDefinitionsExecutionTest extends TestCase
     public function test_unsupported_executor_and_no_enabled_stores_queue_nothing(): void
     {
         Queue::fake();
-        $unsupported = $this->definition('ssh');
+        $unsupported = $this->definition('smtp');
         $this->assignment($unsupported, 'SSH');
         $empty = $this->definition();
         $disabled = $this->definition();
@@ -139,7 +139,7 @@ class CheckDefinitionsExecutionTest extends TestCase
         $http = $this->definition();
         $enabled = $this->assignment($http, 'Principal');
         $disabled = $this->assignment($http, 'Desabilitada', false);
-        $unsupported = $this->assignment($this->definition('ssh'), 'SSH');
+        $unsupported = $this->assignment($this->definition('smtp'), 'SSH');
         $component = $this->executionComponent();
 
         $component->call('runNow', $disabled->id)->call('runNow', $unsupported->id);

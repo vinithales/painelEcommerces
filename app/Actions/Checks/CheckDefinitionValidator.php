@@ -2,6 +2,7 @@
 
 namespace App\Actions\Checks;
 
+use App\Services\Checks\Executors\ApiExecutor;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -9,7 +10,11 @@ class CheckDefinitionValidator
 {
     public const LEVELS = ['SERVER', 'APP', 'API', 'SITE'];
 
-    public const EXECUTOR_TYPES = ['http', 'browser', 'api', 'agent', 'database'];
+    public const EXECUTOR_TYPES = ['http', 'browser', 'api', 'ssh', 'agent', 'database'];
+
+    public const RUNNABLE = ['http', 'browser', 'api', 'ssh'];
+
+    public const SSH_FIELDS = ['exit_code', 'stdout', 'stderr', 'response_time'];
 
     public const ASSERTION_OPERATORS = [
         'contains', 'not_contains', 'contains_ignore_case', 'not_contains_ignore_case',
@@ -37,6 +42,10 @@ class CheckDefinitionValidator
     ];
 
     public const ASSERTION_FIELDS = [
+        'json_number' => 'number',
+        'exit_code' => 'integer',
+        'stdout' => 'string',
+        'stderr' => 'string',
         'status_code' => 'integer',
         'response_time' => 'integer',
         'url' => 'string',
@@ -60,7 +69,7 @@ class CheckDefinitionValidator
             'configuration' => 'present|array',
             'assertions' => 'present|array|min:1',
             'assertions.*' => 'array:field,operator,expected',
-            'assertions.*.field' => ['required', 'string', 'regex:/^(status_code|response_time|url|body|cache_status|console_error_count|page_error_count|headers\.[a-zA-Z0-9_-]+)$/D'],
+            'assertions.*.field' => ['required', 'string', 'regex:/^(json_number|exit_code|stdout|stderr|status_code|response_time|url|body|cache_status|console_error_count|page_error_count|headers\.[a-zA-Z0-9_-]+)$/D'],
             'assertions.*.operator' => ['required', Rule::in(self::ASSERTION_OPERATORS)],
             'assertions.*.expected' => 'required',
         ];
@@ -84,6 +93,29 @@ class CheckDefinitionValidator
             $rules['configuration.path'] = ['required', 'string', 'max:2048', 'regex:#^/(?!/)(?!.*\\\\)[^\r\n]*$#D'];
             $rules['configuration.timeout'] = 'required|integer|min:1|max:30';
             $rules['configuration.wait_ms'] = 'required|integer|min:0|max:10000';
+        }
+
+        if (($data['executor_type'] ?? null) === 'ssh') {
+            $rules['configuration'] = 'required|array:script,timeout';
+            $rules['configuration.script'] = 'required|string|max:32768';
+            $rules['configuration.timeout'] = 'required|integer|between:1,90';
+        }
+
+        if (($data['executor_type'] ?? null) === 'api') {
+            $rules['configuration'] = 'required|array:path,method,timeout,payload,json_path,authenticate,header_lines,follow_redirects';
+            $rules['configuration.path'] = ['required', 'string', 'max:2048', 'regex:#^/(?!/)(?!.*\\\\)[^\r\n]*$#D'];
+            $rules['configuration.method'] = ['required', Rule::in(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])];
+            $rules['configuration.timeout'] = 'required|integer|between:1,30';
+            $rules['configuration.payload'] = 'nullable|string|json|max:32768';
+            $rules['configuration.header_lines'] = ['bail', 'nullable', 'string', 'max:4096', function ($attribute, $value, $fail) {
+                try {
+                    ApiExecutor::requestHeaders($value);
+                } catch (\InvalidArgumentException $error) {
+                    $fail($error->getMessage());
+                }
+            }];
+            $rules['configuration.json_path'] = 'nullable|string|max:255';
+            $rules['configuration.authenticate'] = 'sometimes|boolean';
         }
 
         $validator = Validator::make($data, $rules);
@@ -117,6 +149,17 @@ class CheckDefinitionValidator
                     continue;
                 }
 
+                if ($field === 'json_number' && (($data['executor_type'] ?? '') !== 'api' || blank($data['configuration']['json_path'] ?? null))) {
+                    $validator->errors()->add("assertions.{$index}.field", 'Selecione um campo da resposta JSON na configuração da API.');
+                }
+                if ($field === 'json_number' && ! is_int($expected) && ! is_float($expected)) {
+                    $validator->errors()->add("assertions.{$index}.expected", 'Informe um número.');
+                }
+                $ssh = ($data['executor_type'] ?? '') === 'ssh';
+                if (($ssh && ! in_array($field, self::SSH_FIELDS, true))
+                    || (! $ssh && in_array($field, ['exit_code', 'stdout', 'stderr'], true))) {
+                    $validator->errors()->add("assertions.{$index}.field", 'Campo incompatível com este executor.');
+                }
                 if (in_array($field, ['console_error_count', 'page_error_count'], true) && ($data['executor_type'] ?? '') !== 'browser') {
                     $validator->errors()->add("assertions.{$index}.field", 'Este campo exige o executor browser.');
                 }
@@ -124,7 +167,7 @@ class CheckDefinitionValidator
                     $validator->errors()->add("assertions.{$index}.field", 'O diagnostico de cache exige o executor HTTP.');
                 }
 
-                $operators = (self::ASSERTION_FIELDS[$field] ?? 'string') === 'integer'
+                $operators = (self::ASSERTION_FIELDS[$field] ?? 'string') !== 'string'
                     ? self::NUMERIC_ASSERTION_OPERATORS
                     : self::TEXT_ASSERTION_OPERATORS;
 
@@ -140,7 +183,7 @@ class CheckDefinitionValidator
                         "assertions.{$index}.expected",
                         'O status_code deve ser um inteiro entre 100 e 599.'
                     );
-                } elseif (in_array($field, ['response_time', 'console_error_count', 'page_error_count'], true) && (! is_int($expected) || $expected < 0)) {
+                } elseif (in_array($field, ['exit_code', 'response_time', 'console_error_count', 'page_error_count'], true) && (! is_int($expected) || $expected < 0)) {
                     $validator->errors()->add(
                         "assertions.{$index}.expected",
                         "O campo '{$field}' deve ser um inteiro maior ou igual a zero."

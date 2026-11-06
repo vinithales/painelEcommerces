@@ -7,7 +7,7 @@
         'group' => $enabledAssignments->whereIn('id', $assignmentIds),
         default => $enabledAssignments,
     };
-    $canExecute = in_array($definition->executor_type, ['http', 'browser'], true) && $targets->isNotEmpty();
+    $canExecute = in_array($definition->executor_type, \App\Actions\Checks\CheckDefinitionValidator::RUNNABLE, true) && $targets->isNotEmpty();
     $finished = collect($progress)->whereIn('status', ['success', 'failed', 'error'])->count();
     $failures = collect($progress)->whereIn('status', ['failed', 'error'])->count();
     $active = $started && $finished < count($progress);

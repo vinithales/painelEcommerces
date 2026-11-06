@@ -24,6 +24,23 @@ class StoreDiagnosticsTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_only_an_admin_can_set_ssh_credentials_and_editing_preserves_the_key(): void
+    {
+        $store = $this->store();
+        $component = \App\Livewire\Stores\StoreDiagnostics::class;
+        $profile = ['host' => 'store.example', 'port' => 22, 'user' => 'monitor', 'host_key' => 'ssh-ed25519 AAAA', 'private_key' => 'test-key-material'];
+        Livewire::actingAs(User::factory()->create(['role' => 'n2']))
+            ->test($component, ['store' => $store])->call('saveSsh')->assertForbidden();
+        $admin = User::factory()->create(['role' => 'admin']);
+        Livewire::actingAs($admin)->test($component, ['store' => $store])
+            ->set('ssh', $profile)->call('saveSsh')->assertHasNoErrors()->assertSet('ssh.private_key', '');
+        $store->refresh();
+        $this->assertStringNotContainsString('test-key-material', $store->getRawOriginal('ssh_profile'));
+        Livewire::actingAs($admin)->test($component, ['store' => $store])->assertSet('ssh.private_key', '')
+            ->set('ssh.port', 2222)->call('saveSsh')->assertHasNoErrors();
+        $this->assertSame('test-key-material', $store->fresh()->ssh_profile['private_key']);
+    }
+
     public function test_installer_is_idempotent_and_assigns_both_checks_to_every_store(): void
     {
         $this->store();

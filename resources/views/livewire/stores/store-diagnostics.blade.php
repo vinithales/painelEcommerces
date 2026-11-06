@@ -2,7 +2,23 @@
 <div class="page-header"><div><h2>Diagnóstico do servidor</h2><p>{{ $store->name }} · Operações autorizadas de leitura</p></div></div>
 @foreach($errors->all() as $error)<p class="error">{{ $error }}</p>@endforeach
 @can('configure')<details class="panel"><summary>Configurar conexão do agente</summary><form wire:submit="saveConnection"><label>Endpoint HTTPS<input wire:model="endpoint" placeholder="https://loja.exemplo/bring-agent"></label><label>Token (vazio preserva o atual)<input type="password" wire:model="token" autocomplete="new-password"></label><button class="btn btn-primary">Salvar conexão</button></form></details>@endcan
-@if(!$store->serverConnection)<div class="panel"><h3>Servidor não configurado</h3><p>Um administrador deve implantar o agente e cadastrar a conexão. As consultas de API continuam disponíveis.</p></div>@else
+@can('configure')
+<details class="panel"><summary>Configurar conexão SSH</summary>
+    <form wire:submit="saveSsh">
+        <div class="form-grid">
+            <label>Servidor<input wire:model="ssh.host" placeholder="ssh.loja.com.br" required></label>
+            <label>Porta<input type="number" wire:model="ssh.port" min="1" max="65535" required></label>
+            <label>Usuário remoto<input wire:model="ssh.user" required></label>
+            <label>Chave pública do servidor<input wire:model="ssh.host_key" placeholder="ssh-ed25519 AAAA…" required>
+                <small>Copie o tipo e o valor da chave pública do host, confirmados com o administrador.</small></label>
+            <label>Chave privada do usuário<textarea rows="4" wire:model="ssh.private_key" spellcheck="false" autocomplete="off"></textarea>
+                <small>Com senha cadastrada para este IP e usuário, a conexão usa a senha. Para autenticar por chave, use uma chave sem senha.</small></label>
+        </div>
+        <button class="btn btn-primary">Salvar conexão SSH</button>
+    </form>
+</details>
+@endcan
+@if(!$store->serverConnection)<div class="panel"><h3>Agente não configurado</h3><p>Um administrador deve implantar o agente e cadastrar a conexão. As consultas de API continuam disponíveis.</p></div>@else
 <div class="toolbar"><button class="btn btn-primary" wire:click="execute('server_status')">Estado do servidor</button>@if($store->isMagento2())<button class="btn btn-secondary" wire:click="execute('server_cron')">Diagnosticar cron</button>@endif</div>
 @if($store->isMagento2())<div class="panel"><h3>Logs Magento</h3><div class="toolbar">
 <label>Arquivo<select wire:model="logFile">@foreach(\App\Services\Infrastructure\AgentServerConnection::LOGS as $file)<option>{{ $file }}</option>@endforeach</select></label>

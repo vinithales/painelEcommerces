@@ -3,6 +3,7 @@
 namespace Tests\Feature\Operations;
 
 use App\Livewire\Stores\EditStore;
+use App\Livewire\Stores\CreateStore;
 use App\Livewire\Stores\CheckDefinitions;
 use App\Livewire\Stores\StoreDiagnostics;
 use App\Models\AuditEvent;
@@ -90,5 +91,34 @@ class OperationsTest extends TestCase
         config(['operations.queue_connection' => 'sync']);
         $this->expectException(\RuntimeException::class);
         OperationsQueue::connection();
+    }
+
+    public function test_optional_ssh_credentials_can_be_added_after_registration(): void
+    {
+        $admin = $this->user();
+        Livewire::actingAs($admin)->test(CreateStore::class)
+            ->set('form.name', 'SSH opcional')->set('form.store_url', 'https://ssh.example.com')
+            ->set('form.consumer_key', 'ck')->set('form.consumer_secret', 'cs')
+            ->call('save')->assertHasNoErrors();
+        $store = Store::firstOrFail();
+        $this->assertNull($store->ssh_password);
+        $this->assertNull($store->ssh_ip);
+        $this->assertNull($store->ssh_user);
+
+        Livewire::test(EditStore::class, ['store' => $store])
+            ->set('form.ssh_ip', 'wrong-ip')->call('save')->assertHasErrors('form.ssh_ip')
+            ->set('form.ssh_ip', '2001:db8::1')->set('form.ssh_user', 'monitor')
+            ->set('form.ssh_password', 'test-ssh-secret')->call('save')->assertHasNoErrors();
+        $store->refresh();
+        $this->assertNotSame('test-ssh-secret', $store->getRawOriginal('ssh_password'));
+        $this->assertArrayNotHasKey('ssh_password', $store->toArray());
+        Livewire::test(EditStore::class, ['store' => $store])
+            ->assertSet('form.ssh_password', '')->call('save')->assertHasNoErrors();
+        $this->assertSame('test-ssh-secret', $store->fresh()->ssh_password);
+
+        Livewire::test(StoreDiagnostics::class, ['store' => $store])
+            ->assertSet('ssh.host', '2001:db8::1')->assertSet('ssh.user', 'monitor')
+            ->set('ssh.host_key', 'ssh-ed25519 AAAA')->call('saveSsh')->assertHasNoErrors();
+        $this->assertNull($store->fresh()->ssh_profile['private_key']);
     }
 }

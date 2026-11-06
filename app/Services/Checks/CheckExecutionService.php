@@ -2,6 +2,9 @@
 
 namespace App\Services\Checks;
 
+use App\Actions\Checks\CheckDefinitionValidator;
+use App\Services\Checks\Executors\ApiExecutor;
+use App\Services\Checks\Executors\SshExecutor;
 use App\Models\CheckAssignment;
 use App\Models\CheckExecution;
 use App\Services\Checks\Executors\BrowserExecutor;
@@ -12,6 +15,8 @@ class CheckExecutionService
     public function __construct(
         private readonly HttpExecutor $httpExecutor,
         private readonly AssertionEvaluator $assertionEvaluator,
+        private readonly ApiExecutor $apiExecutor,
+        private readonly SshExecutor $sshExecutor,
         private readonly BrowserExecutor $browserExecutor,
     ) {}
 
@@ -38,7 +43,7 @@ class CheckExecutionService
             ? $execution->definition_snapshot['executor_type']
             : $definition->executor_type;
 
-        if (! in_array($executorType, ['http', 'browser'], true)) {
+        if (! in_array($executorType, CheckDefinitionValidator::RUNNABLE, true)) {
             throw new \InvalidArgumentException("Executor type não suportado: {$executorType}");
         }
 
@@ -67,11 +72,14 @@ class CheckExecutionService
                 );
             }
 
-            $executor = $executorType === 'browser' ? $this->browserExecutor : $this->httpExecutor;
-            $result = $executor->execute(
-                $assignment->store->store_url,
-                $execution->definition_snapshot['configuration']
-            );
+            $configuration = $execution->definition_snapshot['configuration'];
+            $store = $assignment->store;
+            $result = match ($executorType) {
+                'browser' => $this->browserExecutor->execute($store->store_url, $configuration),
+                'http' => $this->httpExecutor->execute($store->store_url, $configuration),
+                'api' => $this->apiExecutor->execute($store, $configuration),
+                'ssh' => $this->sshExecutor->execute($store, $configuration),
+            };
 
             if (isset($result['observation_error'])) {
                 throw new \RuntimeException($result['observation_error']);

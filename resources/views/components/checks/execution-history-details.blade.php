@@ -52,16 +52,23 @@
             @if ($observed)
                 @if($execution->status === 'error')<p class="muted">Dados parciais coletados antes da interrupção. Eles não representam uma verificação concluída.</p>@endif
                 <dl class="check-history__facts">
+                    @if(array_key_exists('exit_code', $observed))
+                        <div><dt>Código de saída</dt><dd>{{ $observed['exit_code'] }}</dd></div>
+                    @else
                     <div><dt>Código HTTP</dt><dd>{{ $observed['status_code'] ?? '—' }}</dd></div>
+                    @endif
                     <div><dt>Tempo de resposta</dt><dd>{{ isset($observed['response_time']) ? $observed['response_time'].' ms' : '—' }}</dd></div>
-                    <div class="check-history__fact-wide"><dt>URL</dt><dd>{{ $observed['url'] ?? '—' }}</dd></div>
+                    @if(isset($observed['url']))<div class="check-history__fact-wide"><dt>URL</dt><dd>{{ $observed['url'] }}</dd></div>@endif
                 </dl>
+                @foreach(['stdout' => 'Saída do script', 'stderr' => 'Saída de erro'] as $key => $label)
+                    @if(($observed[$key] ?? '') !== '')<details><summary>{{ $label }}</summary><pre>{{ $observed[$key] }}</pre></details>@endif
+                @endforeach
                 @if(isset($observed['cache_status']))
                     @if($execution->status !== 'error')<x-checks.cache-feedback :observed="$observed" />@endif
                 @endif
                 @if (array_key_exists('body', $observed) && $observed['body'] !== null && $observed['body'] !== '')
                     <details class="check-history__body-details">
-                        <summary>Ver HTML da resposta</summary>
+                        <summary>{{ ($snapshot['executor_type'] ?? '') === 'api' ? 'Ver conteúdo da resposta' : 'Ver HTML da resposta' }}</summary>
                         <pre>{{ $observed['body'] }}</pre>
                     </details>
                 @endif

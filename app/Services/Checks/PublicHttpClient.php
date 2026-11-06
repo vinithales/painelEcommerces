@@ -38,7 +38,7 @@ class PublicHttpClient
         return [$host, $p['port'] ?? ($p['scheme'] === 'https' ? 443 : 80), $addresses[0]];
     }
 
-    public function fetch(string $url, string $method = 'GET', int $timeout = 10, bool $redirects = false, array $headers = [], ?int $maxBytes = null): array
+    public function fetch(string $url, string $method = 'GET', int $timeout = 10, bool $redirects = false, array $headers = [], ?int $maxBytes = null, ?string $body = null): array
     {
         $start = microtime(true);
         $max = $maxBytes ?? (int) config('operations.max_response_bytes', 1048576);
@@ -64,7 +64,7 @@ class PublicHttpClient
                             throw new RuntimeException('Resposta acima do limite.');
                         }
                     },
-                ])->send($method, $url);
+                ])->send($method, $url, $body === null ? [] : ['body' => $body]);
             if ($redirects && in_array($response->status(), [301, 302, 303, 307, 308], true) && $response->header('Location')) {
                 $next = $this->resolve($url, $response->header('Location'));
                 if (parse_url($next, PHP_URL_HOST) !== parse_url($url, PHP_URL_HOST)) {

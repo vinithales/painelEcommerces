@@ -97,7 +97,7 @@
                         </td>
                         <td>
                             <div class="definition-actions">
-                                @php $canExecute = in_array($definition->executor_type, ['http', 'browser'], true) && $definition->assignments->contains('enabled', true); @endphp
+                                @php $canExecute = in_array($definition->executor_type, \App\Actions\Checks\CheckDefinitionValidator::RUNNABLE, true) && $definition->assignments->contains('enabled', true); @endphp
                                 <button type="button" class="btn btn-secondary definition-run" wire:click="openExecution({{ $definition->id }})" wire:loading.attr="disabled" wire:target="openExecution" @disabled(!$canExecute) aria-label="Executar {{ $definition->name }}" aria-haspopup="dialog">
                                     <x-icon name="play" width="16" height="16"/> Executar
                                 </button>
@@ -112,7 +112,7 @@
                                 @endcan
                             </div>
                             @if(!$canExecute)
-                                <p class="definition-actions__hint">{{ ! in_array($definition->executor_type, ['http', 'browser'], true) ? 'Execução disponível para HTTP' : 'Nenhuma loja habilitada' }}</p>
+                                <p class="definition-actions__hint">{{ ! in_array($definition->executor_type, \App\Actions\Checks\CheckDefinitionValidator::RUNNABLE, true) ? 'Executor indisponível' : 'Nenhuma loja habilitada' }}</p>
                             @endif
                         </td>
                     </tr>
@@ -194,7 +194,7 @@
                         </label>
                         <label>Tipo de executor
                             <select wire:model.live="executorType">
-                                @foreach($executorTypes as $option)<option value="{{ $option }}">{{ $option }}</option>@endforeach
+                                @foreach($executorTypes as $option)<option value="{{ $option }}">{{ strtoupper($option) }}</option>@endforeach
                             </select>
                         </label>
                     </div>
@@ -203,7 +203,11 @@
                 <section aria-labelledby="request-settings-title">
                     <div class="panel__header">
                         <h3 id="request-settings-title">O que vamos verificar?</h3>
-                        <p>Defina a página e como ela deve ser acessada.</p>
+                        <p>{{ match ($executorType) {
+                            'ssh' => 'O script será executado com sh, usando o acesso SSH de cada loja.',
+                            'api' => 'Configure a requisição que cada loja receberá.',
+                            default => 'Defina a página e como ela deve ser acessada.',
+                        } }}</p>
                     </div>
                     @if($executorType === 'http')
                         <div class="field-grid">
@@ -235,6 +239,54 @@
                                 <span>Seguir redirecionamentos <small class="muted">Continuar quando a página encaminhar para outro endereço.</small></span>
                             </label>
                             @error('configuration.follow_redirects')<span class="field-error">{{ $message }}</span>@enderror
+                        </div>
+                    @elseif($executorType === 'ssh')
+                        <div class="field-grid">
+                            <label class="field--full">Biblioteca de scripts
+                                <select wire:model="scriptSource">
+                                    <option value="">Escolha um script para copiar</option>
+                                    <optgroup label="Modelos">
+                                        @foreach(\App\Livewire\Stores\CheckDefinitions::SCRIPT_MODELS as $key => $model)
+                                            <option value="{{ $key }}">{{ $model[0] }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                    @if(count($scriptLibrary))
+                                        <optgroup label="Verificações salvas">
+                                            @foreach($scriptLibrary as $id => $title)<option value="{{ $id }}">{{ $title }}</option>@endforeach
+                                        </optgroup>
+                                    @endif
+                                </select>
+                            </label>
+                            <button type="button" class="btn btn-secondary" wire:click="useScript">Copiar para o editor</button>
+                            <label class="field--full">Script shell
+                                <textarea class="definition-script-editor" wire:model="sshConfiguration.script" rows="10" spellcheck="false" maxlength="32768" placeholder="df -hP /" required></textarea>
+                                <small>O código salvo poderá ser reutilizado pela biblioteca. Use as condições para avaliar a saída ou o código de retorno.</small>
+                            </label>
+                            <label>Tempo limite (s)<input wire:model.number="sshConfiguration.timeout" type="number" min="1" max="90" required></label>
+                        </div>
+                    @elseif($executorType === 'api')
+                        <div class="field-grid">
+                            <label class="field--full">Caminho da API na loja
+                                <input wire:model="apiConfiguration.path" placeholder="/wp-json/wc/v3/system_status" maxlength="2048" required>
+                            </label>
+                            <label>Método<select wire:model="apiConfiguration.method">
+                                @foreach(['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'] as $method)<option>{{ $method }}</option>@endforeach
+                            </select></label>
+                            <label>Tempo limite (s)<input wire:model.number="apiConfiguration.timeout" type="number" min="1" max="30" required></label>
+                            <label class="field--full"><span><input type="checkbox" wire:model="apiConfiguration.authenticate"> Usar credenciais de API da loja (HTTPS)</span></label>
+                            <details class="field--full"><summary>Cabeçalhos adicionais</summary>
+                                <label>Cabeçalhos públicos da requisição
+                                    <textarea wire:model="apiConfiguration.header_lines" rows="3" maxlength="4096" spellcheck="false" placeholder="Accept-Language: pt-BR"></textarea>
+                                    <small>Use uma linha por cabeçalho. Esses valores ficam visíveis no histórico da definição.</small>
+                                </label>
+                            </details>
+                            <label class="field--full">Corpo da requisição (JSON opcional)
+                                <textarea wire:model="apiConfiguration.payload" rows="4" spellcheck="false" placeholder='{"status":"active"}'></textarea>
+                            </label>
+                            <label class="field--full">Campo da resposta JSON (opcional)
+                                <input wire:model="apiConfiguration.json_path" placeholder="Ex.: items.0.status">
+                                <small>Esse valor será o conteúdo da resposta nas condições. Em branco, avalia o corpo completo.</small>
+                            </label>
                         </div>
                     @elseif($executorType === 'browser')
                         <p>Registra console.error e exceções JavaScript da página e de seus scripts durante a observação.</p>
@@ -268,7 +320,7 @@
                         @foreach($assertions as $index => $assertion)
                             @php
                                 $field = $assertion['field'] ?? '';
-                                $numeric = in_array($field, ['status_code', 'response_time', 'console_error_count', 'page_error_count'], true);
+                                $numeric = in_array($field, ['json_number', 'exit_code', 'status_code', 'response_time', 'console_error_count', 'page_error_count'], true);
                                 $operators = $numeric
                                     ? \App\Actions\Checks\CheckDefinitionValidator::NUMERIC_ASSERTION_OPERATORS
                                     : \App\Actions\Checks\CheckDefinitionValidator::TEXT_ASSERTION_OPERATORS;
@@ -278,10 +330,10 @@
                                 <div class="condition-row__fields">
                                     <label>Campo
                                         <select wire:model.live="assertions.{{ $index }}.field">
-                                            @if(!array_key_exists($field, \App\Livewire\Stores\CheckDefinitions::FIELD_LABELS))
+                                            @if(!array_key_exists($field, $fieldLabels))
                                                 <option value="{{ $field }}">{{ $field }}</option>
                                             @endif
-                                            @foreach(\App\Livewire\Stores\CheckDefinitions::FIELD_LABELS as $value => $label)
+                                            @foreach($fieldLabels as $value => $label)
                                                 <option value="{{ $value }}">{{ $label }}</option>
                                             @endforeach
                                         </select>
@@ -301,7 +353,7 @@
                                     <label>Esperado{{ $field === 'response_time' ? ' (ms)' : '' }}
                                         <input wire:key="expected-{{ $index }}-{{ $field }}" type="{{ $numeric ? 'number' : 'text' }}"
                                             wire:model="assertions.{{ $index }}.expected"
-                                            @if($numeric) step="1" min="{{ $field === 'status_code' ? 100 : 0 }}" @endif
+                                            @if($field === 'json_number') step="any" @elseif($numeric) step="1" min="{{ $field === 'status_code' ? 100 : 0 }}" @endif
                                             @if($field === 'status_code') max="599" @endif
                                             placeholder="{{ $field === 'status_code' ? 'Ex.: 200' : ($field === 'response_time' ? 'Ex.: 3000' : 'Digite o texto esperado') }}" required>
                                         @error("assertions.$index.expected")<span class="field-error">{{ $message }}</span>@enderror

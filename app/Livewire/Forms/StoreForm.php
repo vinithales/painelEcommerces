@@ -22,6 +22,12 @@ class StoreForm extends Form
 
     public string $shipping_gateway = '';
 
+    public string $ssh_ip = '';
+
+    public string $ssh_user = '';
+
+    public string $ssh_password = '';
+
     public string $consumer_key = '';
 
     public string $consumer_secret = '';
@@ -49,6 +55,9 @@ class StoreForm extends Form
             'panel_prefix' => ['nullable', 'string', 'max:255'],
             'payment_gateway' => ['nullable', 'string', 'max:255'],
             'shipping_gateway' => ['nullable', 'string', 'max:255'],
+            'ssh_ip' => ['nullable', 'ip'],
+            'ssh_user' => ['nullable', 'string', 'max:64', 'regex:/^[a-z_][a-z0-9_-]*$/iD'],
+            'ssh_password' => ['nullable', 'string', 'max:4096'],
             'consumer_key' => [$existing || ($this->username && $this->password) ? 'nullable' : 'required', 'string', 'max:255'],
             'consumer_secret' => [$existing || ($this->username && $this->password) ? 'nullable' : 'required', 'string', 'max:255'],
             'access_token' => [$existing || $this->platform !== Store::PLATFORM_MAGENTO2 || ($this->username && $this->password) ? 'nullable' : 'required', 'string', 'max:255'],
@@ -88,6 +97,9 @@ class StoreForm extends Form
             'panel_prefix' => $store->panel_prefix ?? '',
             'payment_gateway' => $store->payment_gateway ?? '',
             'shipping_gateway' => $store->shipping_gateway ?? '',
+            'ssh_ip' => $store->ssh_ip ?? '',
+            'ssh_user' => $store->ssh_user ?? '',
+            'ssh_password' => '',
         ]);
 
         foreach (['consumer_key', 'consumer_secret', 'access_token', 'access_token_secret', 'username', 'password', 'wp_username', 'wp_application_password'] as $field) {
@@ -104,7 +116,9 @@ class StoreForm extends Form
             'panel_prefix' => $this->nullIfBlank($this->panel_prefix),
             'payment_gateway' => $this->nullIfBlank($this->payment_gateway),
             'shipping_gateway' => $this->nullIfBlank($this->shipping_gateway),
-        ];
+            'ssh_ip' => $this->nullIfBlank($this->ssh_ip),
+            'ssh_user' => $this->nullIfBlank($this->ssh_user),
+        ] + ($this->ssh_password === '' ? [] : ['ssh_password' => $this->ssh_password]);
     }
 
     public function integrationData(): array

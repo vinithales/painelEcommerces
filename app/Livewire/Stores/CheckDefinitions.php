@@ -58,7 +58,24 @@ class CheckDefinitions extends Component
 
     public array $browserConfiguration = ['path' => '/', 'timeout' => 30, 'wait_ms' => 5000];
 
+    public array $apiConfiguration = ['path' => '/', 'method' => 'GET', 'timeout' => 10, 'authenticate' => false, 'payload' => '', 'json_path' => '', 'header_lines' => ''];
+
+    public array $sshConfiguration = ['script' => '', 'timeout' => 30];
+
+    public string $scriptSource = '';
+
+    public const SCRIPT_MODELS = [
+        'disco' => ['Uso de disco', 'df -hP /'],
+        'memoria' => ['Memória disponível (Linux)', 'free -m'],
+        'servico' => ['Estado de um serviço (systemd)', 'systemctl is-active nginx'],
+        'magento-indices' => ['Magento 2 — indexadores possivelmente travados', null, 'magento-indices.sh'],
+    ];
+
     public const FIELD_LABELS = [
+        'json_number' => 'Valor numérico do campo JSON',
+        'exit_code' => 'Código de saída do script',
+        'stdout' => 'Saída do script',
+        'stderr' => 'Saída de erro do script',
         'status_code' => 'Código de resposta HTTP',
         'response_time' => 'Tempo de resposta',
         'url' => 'Endereço da página',
@@ -151,8 +168,8 @@ class CheckDefinitions extends Component
         $definition = CheckDefinition::findOrFail($this->executionDefinitionId);
         $this->validate(['executionScope' => 'required|in:all,single,group']);
 
-        if (! in_array($definition->executor_type, ['http', 'browser'], true)) {
-            throw ValidationException::withMessages(['executionScope' => 'Execução imediata disponível apenas para verificações HTTP.']);
+        if (! in_array($definition->executor_type, CheckDefinitionValidator::RUNNABLE, true)) {
+            throw ValidationException::withMessages(['executionScope' => 'Executor indisponível']);
         }
 
         $assignments = $definition->assignments()->with(['store', 'checkDefinition'])->where('enabled', true);
@@ -287,7 +304,14 @@ class CheckDefinitions extends Component
         $this->level = $definition->level;
         $this->executorType = $definition->executor_type;
         $this->configurationJson = $this->encodeJson($definition->configuration);
-        $this->httpConfiguration = $definition->configuration;
+        $this->reset('apiConfiguration', 'sshConfiguration', 'httpConfiguration', 'scriptSource');
+        if ($definition->executor_type === 'api') {
+            $this->apiConfiguration = array_replace($this->apiConfiguration, array_intersect_key($definition->configuration, $this->apiConfiguration));
+        } elseif ($definition->executor_type === 'ssh') {
+            $this->sshConfiguration = $definition->configuration;
+        } elseif ($definition->executor_type === 'http') {
+            $this->httpConfiguration = $definition->configuration;
+        }
         $this->browserConfiguration = $definition->executor_type === 'browser' ? $definition->configuration : ['path' => '/', 'timeout' => 30, 'wait_ms' => 5000];
         $this->assertions = $definition->assertions;
         $this->loadStoreAssignments($definition);
@@ -343,11 +367,9 @@ class CheckDefinitions extends Component
                 'name' => $this->name,
                 'level' => $this->level,
                 'executor_type' => $this->executorType,
-                'configuration' => $this->executorType === 'http'
-                    ? $this->normalizedHttpConfiguration()
-                    : ($this->executorType === 'browser' ? $this->normalizedBrowserConfiguration() : $this->decodeJson('configurationJson')),
+                'configuration' => $this->configuration(),
                 'assertions' => $this->formStep === 3 ? $this->normalizedAssertions()
-                    : [['field' => 'status_code', 'operator' => 'equals', 'expected' => 200]],
+                    : [['field' => 'response_time', 'operator' => 'less_than', 'expected' => 3000]],
             ]);
         }
 
@@ -370,9 +392,7 @@ class CheckDefinitions extends Component
                     'name' => $this->name,
                     'level' => $this->level,
                     'executor_type' => $this->executorType,
-                    'configuration' => $this->executorType === 'http'
-                        ? $this->normalizedHttpConfiguration()
-                        : ($this->executorType === 'browser' ? $this->normalizedBrowserConfiguration() : $this->decodeJson('configurationJson')),
+                    'configuration' => $this->configuration(),
                     'assertions' => $this->normalizedAssertions(),
                 ],
                 $this->selectedAssignments()
@@ -413,8 +433,8 @@ class CheckDefinitions extends Component
     {
         Gate::authorize('operate');
         $assignment = CheckAssignment::with(['checkDefinition', 'store'])->findOrFail($id);
-        if (! in_array($assignment->checkDefinition->executor_type, ['http', 'browser'], true)) {
-            session()->flash('status', 'Execução imediata apenas disponível para verificações HTTP.');
+        if (! in_array($assignment->checkDefinition->executor_type, CheckDefinitionValidator::RUNNABLE, true)) {
+            session()->flash('status', 'Executor indisponível');
 
             return;
         }
@@ -437,6 +457,7 @@ class CheckDefinitions extends Component
     private function resetForm(): void
     {
         $this->formStep = 1;
+        $this->reset('apiConfiguration', 'sshConfiguration', 'scriptSource');
         $this->editingId = null;
         $this->name = '';
         $this->level = 'SITE';
@@ -476,6 +497,40 @@ class CheckDefinitions extends Component
         }
     }
 
+    private function configuration(): array
+    {
+        return match ($this->executorType) {
+            'api' => $this->apiConfiguration,
+            'ssh' => $this->sshConfiguration,
+            'http' => $this->normalizedHttpConfiguration(),
+            'browser' => $this->normalizedBrowserConfiguration(),
+            default => $this->decodeJson('configurationJson'),
+        };
+    }
+
+    public function updatedExecutorType(string $type): void
+    {
+        $this->level = match ($type) {
+            'ssh' => 'SERVER', 'api' => 'API', default => $this->level,
+        };
+        $this->assertions = [[
+            'field' => $type === 'ssh' ? 'exit_code' : 'status_code',
+            'operator' => 'equals', 'expected' => $type === 'ssh' ? 0 : 200,
+        ]];
+    }
+
+    public function useScript(): void
+    {
+        Gate::authorize('manage');
+        if (isset(self::SCRIPT_MODELS[$this->scriptSource])) {
+            $model = self::SCRIPT_MODELS[$this->scriptSource];
+            $this->sshConfiguration['script'] = $model[1] ?? \Illuminate\Support\Facades\File::get(resource_path('scripts/'.$model[2]));
+        } elseif (ctype_digit($this->scriptSource)) {
+            $this->sshConfiguration['script'] = CheckDefinition::where('executor_type', 'ssh')
+                ->findOrFail($this->scriptSource)->configuration['script'];
+        }
+    }
+
     private function normalizedAssertions(): array
     {
         $this->validate([
@@ -487,7 +542,10 @@ class CheckDefinitions extends Component
         ]);
 
         return array_map(function (array $assertion): array {
-            if (in_array($assertion['field'], ['status_code', 'response_time', 'console_error_count', 'page_error_count'], true)) {
+            if ($assertion['field'] === 'json_number' && is_numeric($assertion['expected'])) {
+                $assertion['expected'] += 0;
+            }
+            if (in_array($assertion['field'], ['exit_code', 'status_code', 'response_time', 'console_error_count', 'page_error_count'], true)) {
                 // Convert only valid integer input; leave invalid values for backend validation.
                 $value = $assertion['expected'];
                 if (is_string($value) && preg_match('/^\d+$/D', $value)
@@ -599,6 +657,15 @@ class CheckDefinitions extends Component
                 : null,
             'stores' => Store::orderBy('name')->get(['id', 'name']),
             'levels' => CheckDefinitionValidator::LEVELS,
+            'scriptLibrary' => $this->formOpen && $this->formStep === 2 && $this->executorType === 'ssh' && Gate::allows('manage')
+                ? CheckDefinition::where('executor_type', 'ssh')->orderBy('name')->pluck('name', 'id') : [],
+            'fieldLabels' => array_filter(self::FIELD_LABELS, fn ($field) => match ($this->executorType) {
+                'ssh' => in_array($field, CheckDefinitionValidator::SSH_FIELDS, true),
+                default => ! in_array($field, ['stdout', 'stderr', 'exit_code'], true)
+                    && ($field !== 'json_number' || ($this->executorType === 'api' && filled($this->apiConfiguration['json_path'] ?? null)))
+                    && ($field !== 'cache_status' || $this->executorType === 'http')
+                    && (! in_array($field, ['console_error_count', 'page_error_count'], true) || $this->executorType === 'browser'),
+            }, ARRAY_FILTER_USE_KEY),
             'executorTypes' => CheckDefinitionValidator::EXECUTOR_TYPES,
         ])->layout('layouts.app', ['title' => 'Verificação']);
     }

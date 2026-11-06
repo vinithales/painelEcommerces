@@ -16,6 +16,7 @@ FROM php:8.4-cli-bookworm AS application
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         curl \
+        openssh-client \
         gosu \
         libcurl4-openssl-dev \
         libonig-dev \

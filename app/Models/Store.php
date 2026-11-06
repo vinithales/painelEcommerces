@@ -26,6 +26,10 @@ class Store extends Model
 
     public const PLATFORM_MAGENTO2 = 'magento2';
 
+    protected $hidden = ['ssh_profile', 'ssh_password'];
+
+    protected $casts = ['ssh_profile' => 'encrypted:array', 'ssh_password' => 'encrypted'];
+
     protected $fillable = [
         'name',
         'platform',
@@ -33,7 +37,21 @@ class Store extends Model
         'panel_prefix',
         'payment_gateway',
         'shipping_gateway',
+        'ssh_ip',
+        'ssh_user',
+        'ssh_password',
     ];
+
+    public function hasSshPasswordFor(string $host, string $user): bool
+    {
+        return $this->ssh_ip === $host && $this->ssh_user === $user
+            && $this->getRawOriginal('ssh_password') !== null;
+    }
+
+    public function hasSshPasswordConnection(): bool
+    {
+        return filled($this->ssh_ip) && filled($this->ssh_user) && $this->getRawOriginal('ssh_password') !== null;
+    }
 
     public function wooCommerceIntegration(): HasOne
     {

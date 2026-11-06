@@ -27,6 +27,9 @@ class AssertionEvaluator
         $expected = $assertion['expected'];
         $operator = $assertion['operator'];
 
+        if ($field === 'json_number' && ! is_numeric($actual)) {
+            return compact('field', 'operator', 'expected', 'actual') + ['passed' => false];
+        }
         if (in_array($operator, ['greater_than', 'less_than', 'greater_than_or_equal', 'less_than_or_equal'], true)) {
             $actualIsNumber = is_int($actual) || is_float($actual);
             $expectedIsNumber = is_int($expected) || is_float($expected);
@@ -45,8 +48,8 @@ class AssertionEvaluator
         }
 
         $passed = match ($operator) {
-            'equals' => $actual === $expected,
-            'not_equals' => $actual !== $expected,
+            'equals' => $field === 'json_number' ? $actual == $expected : $actual === $expected,
+            'not_equals' => $field === 'json_number' ? $actual != $expected : $actual !== $expected,
             'greater_than' => $actual > $expected,
             'less_than' => $actual < $expected,
             'greater_than_or_equal' => $actual >= $expected,

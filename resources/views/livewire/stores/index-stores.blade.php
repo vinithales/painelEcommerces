@@ -8,7 +8,7 @@
 @php
 $active=$store->checkAssignments->where('enabled',true);
 $api=$active->filter(fn ($assignment) => $assignment->checkDefinition?->level === 'API')->sortByDesc(fn ($assignment) => $assignment->latestExecution?->created_at)->first()?->healthStatus()??'UNKNOWN';
-$server=$store->serverConnection?($active->filter(fn ($assignment) => $assignment->checkDefinition?->level === 'SERVER')->sortByDesc(fn ($assignment) => $assignment->latestExecution?->created_at)->first()?->healthStatus()??'UNKNOWN'):'Não configurado';
+$server=($store->serverConnection || $store->getRawOriginal('ssh_profile') || $store->hasSshPasswordConnection())?($active->filter(fn ($assignment) => $assignment->checkDefinition?->level === 'SERVER')->sortByDesc(fn ($assignment) => $assignment->latestExecution?->created_at)->first()?->healthStatus()??'UNKNOWN'):'Não configurado';
 $lastExecution=$active->pluck('latestExecution')->filter()->sortByDesc('created_at')->first();
 @endphp
 <tr wire:key="store-{{ $store->id }}"><td><a wire:navigate href="{{ route('stores.overview',$store) }}"><strong>{{ $store->name }}</strong></a><p class="muted">{{ parse_url($store->store_url,PHP_URL_HOST) }}</p></td>

@@ -19,7 +19,7 @@ class CleanCheckExecutionResults extends Command
      *
      * @var string
      */
-    protected $description = 'Deleta registros de execução de verificação antigos e limpa os resultados das execuções antigas';
+    protected $description = 'Remove o corpo das respostas de verificações finalizadas há mais de 90 dias';
 
     /**
      * Execute the console command.

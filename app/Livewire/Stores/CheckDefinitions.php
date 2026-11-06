@@ -308,6 +308,26 @@ class CheckDefinitions extends Component
         $this->resetErrorBag();
     }
 
+    public function goToStep(int $step, CheckDefinitionValidator $validator): void
+    {
+        Gate::authorize('manage');
+
+        if (! array_key_exists($step, self::FORM_STEPS)) {
+            return;
+        }
+
+        if ($step <= $this->formStep) {
+            $this->formStep = $step;
+            $this->resetErrorBag();
+
+            return;
+        }
+
+        while ($this->formStep < $step) {
+            $this->nextStep($validator);
+        }
+    }
+
     public function nextStep(CheckDefinitionValidator $validator): void
     {
         Gate::authorize('manage');
@@ -373,12 +393,20 @@ class CheckDefinitions extends Component
         session()->flash('status', 'Definição e associações salvas.');
     }
 
-    public function delete(int $id): void
+    public function delete(int $id, CheckDefinitionService $service): void
     {
         Gate::authorize('manage');
         $definition = CheckDefinition::findOrFail($id);
-        $definition->delete();
-        session()->flash('status', 'Definição e associações removidas.');
+        $service->delete($definition);
+        session()->flash('status', 'Definição removida.');
+    }
+
+    public function disable(int $id): void
+    {
+        Gate::authorize('manage');
+        $definition = CheckDefinition::findOrFail($id);
+        $definition->assignments()->update(['enabled' => false, 'next_run_at' => null]);
+        session()->flash('status', 'Todas as associações de '.$definition->name.' foram desabilitadas.');
     }
 
     public function runNow(int $id): void

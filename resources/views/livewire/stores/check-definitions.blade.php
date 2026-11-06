@@ -1,13 +1,15 @@
 <div>
-    <div class="page-header">
+    <div class="page-header definition-header">
         <div>
             <h2>Verificação</h2>
             <p>Crie uma regra reutilizável e associe-a às lojas que devem executá-la.</p>
         </div>
-        <a class="btn btn-secondary" wire:navigate href="{{ route('stores.check-reports') }}">Relatórios e falhas</a>
-        @can('manage')
-            <button type="button" class="btn btn-primary" wire:click="create">Nova definição</button>
-        @endcan
+        <div class="definition-header__actions">
+            <a class="btn btn-secondary" wire:navigate href="{{ route('stores.check-reports') }}">Relatórios e falhas</a>
+            @can('manage')
+                <button type="button" class="btn btn-primary" wire:click="create">Nova definição</button>
+            @endcan
+        </div>
     </div>
 
     <div class="toolbar">
@@ -25,6 +27,10 @@
     @if($executionStatus)
         <div class="flash" role="status">{{ $executionStatus }}</div>
     @endif
+
+    @error('definition')
+        <p class="field-error" role="alert">{{ $message }}</p>
+    @enderror
 
     <div class="card table-wrap">
         <table class="data-table">
@@ -97,6 +103,12 @@
                                 </button>
                                 @can('manage')
                                     <button type="button" class="btn btn-secondary" wire:click="edit({{ $definition->id }})">Editar e associar</button>
+                                    <button type="button" class="btn btn-secondary" wire:click="delete({{ $definition->id }})" wire:confirm="Apagar a verificação '{{ $definition->name }}' e suas associações às lojas?" wire:loading.attr="disabled" wire:target="delete" aria-label="Apagar verificação {{ $definition->name }}">
+                                        <x-icon name="trash" width="16" height="16"/> Apagar
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" wire:click="disable({{ $definition->id }})" wire:confirm="Desabilitar a verificação '{{ $definition->name }}' em todas as lojas? O histórico será preservado." wire:loading.attr="disabled" wire:target="disable" @disabled(!$definition->assignments->contains('enabled', true)) aria-label="Desabilitar todas as associações de {{ $definition->name }}">
+                                        <x-icon name="ban" width="16" height="16"/> Desabilitar
+                                    </button>
                                 @endcan
                             </div>
                             @if(!$canExecute)
@@ -135,9 +147,11 @@
                     <p class="definition-wizard__eyebrow">CONFIGURAR VERIFICAÇÃO</p>
                     <ol>
                         @foreach(\App\Livewire\Stores\CheckDefinitions::FORM_STEPS as $number => $step)
-                            <li class="definition-wizard__step {{ $formStep === $number ? 'is-current' : ($formStep > $number ? 'is-complete' : '') }}" @if($formStep === $number) aria-current="step" @endif>
-                                <span class="definition-wizard__step-number" aria-hidden="true">{{ $formStep > $number ? '✓' : str_pad($number, 2, '0', STR_PAD_LEFT) }}</span>
-                                <span><strong>{{ $step['title'] }}</strong><small>{{ $step['description'] }}</small></span>
+                            <li>
+                                <button type="button" class="definition-wizard__step {{ $formStep === $number ? 'is-current' : ($formStep > $number ? 'is-complete' : '') }}" wire:click="goToStep({{ $number }})" wire:loading.attr="disabled" @if($formStep === $number) aria-current="step" @endif>
+                                    <span class="definition-wizard__step-number" aria-hidden="true">{{ $formStep > $number ? '✓' : str_pad($number, 2, '0', STR_PAD_LEFT) }}</span>
+                                    <span><strong>{{ $step['title'] }}</strong><small>{{ $step['description'] }}</small></span>
+                                </button>
                             </li>
                         @endforeach
                     </ol>

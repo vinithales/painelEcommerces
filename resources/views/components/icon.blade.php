@@ -2,6 +2,7 @@
 <svg {{ $attributes->merge(['width'=>20,'height'=>20,'viewBox'=>'0 0 24 24','fill'=>'none','stroke'=>'currentColor','stroke-width'=>1.7,'stroke-linecap'=>'round','stroke-linejoin'=>'round','aria-hidden'=>'true']) }}>
 @switch($name)
 @case('play')<path d="m8 4 12 8-12 8V4Z"/>@break
+@case('ban')<circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/>@break
 @case('chevron-down')<path d="m6 9 6 6 6-6"/>@break
 @case('chevron-right')<path d="m9 6 6 6-6 6"/>@break
 @case('trash')<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>@break

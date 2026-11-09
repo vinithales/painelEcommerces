@@ -17,12 +17,18 @@ class CheckAssignment extends Model
         'interval_minutes',
         'enabled',
         'next_run_at',
+        'alert_enabled',
+        'failure_threshold',
+        'recovery_threshold',
     ];
 
     protected $casts = [
         'enabled' => 'boolean',
         'interval_minutes' => 'integer',
         'next_run_at' => 'datetime',
+        'alert_enabled' => 'boolean',
+        'failure_threshold' => 'integer',
+        'recovery_threshold' => 'integer',
     ];
 
     public function checkDefinition()
@@ -47,7 +53,7 @@ class CheckAssignment extends Model
 
     public function latestStartedExecution(): HasOne
     {
-        return $this->hasOne(CheckExecution::class)->ofMany(['id' => 'max'], fn ($query) => $query->whereNotNull('started_at'));
+        return $this->hasOne(CheckExecution::class)->ofMany(['id' => 'max'], fn($query) => $query->whereNotNull('started_at'));
     }
 
     public function scopeReportStatus(Builder $query, string $status): Builder
@@ -59,11 +65,11 @@ class CheckAssignment extends Model
         return $query->whereHas('latestExecution', function (Builder $execution) use ($status) {
             match ($status) {
                 'attention' => $execution->where(function (Builder $result) {
-                    $result->whereIn('status', ['error', 'failed'])
-                        ->orWhere(fn ($completed) => $completed->where('status', 'completed')->where('outcome', 'failed'));
-                }),
-                'failed' => $execution->where(fn ($result) => $result->where('status', 'failed')
-                    ->orWhere(fn ($completed) => $completed->where('status', 'completed')->where('outcome', 'failed'))),
+                        $result->whereIn('status', ['error', 'failed'])
+                        ->orWhere(fn($completed) => $completed->where('status', 'completed')->where('outcome', 'failed'));
+                    }),
+                'failed' => $execution->where(fn($result) => $result->where('status', 'failed')
+                    ->orWhere(fn($completed) => $completed->where('status', 'completed')->where('outcome', 'failed'))),
                 'error' => $execution->where('status', 'error'),
                 'success' => $execution->where('status', 'completed')->whereIn('outcome', ['success', 'passed']),
                 'active' => $execution->whereIn('status', ['pending', 'running']),
@@ -80,5 +86,9 @@ class CheckAssignment extends Model
             $this->latestExecution?->outcome === 'success' => 'OK',
             default => 'UNKNOWN',
         };
+    }
+    public function incidents()
+    {
+        return $this->hasMany(CheckIncident::class);
     }
 }

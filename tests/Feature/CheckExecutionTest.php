@@ -10,6 +10,7 @@ use App\Services\Checks\AssertionEvaluator;
 use App\Services\Checks\CheckExecutionService;
 use App\Services\Checks\Executors\HttpExecutor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 class CheckExecutionTest extends TestCase
@@ -79,6 +80,82 @@ class CheckExecutionTest extends TestCase
         $execution = app(CheckExecutionService::class)->run($this->createAssignment(['executor_type' => 'ssh']));
         $this->assertSame('error', $execution->status);
         $this->assertStringContainsString('conexão SSH', $execution->error_message);
+    }
+
+    public function test_ssh_uses_store_credentials_and_persists_success_and_script_failure(): void
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            $this->markTestSkipped('The SSH executor runs in the Linux application container.');
+        }
+        $directory = sys_get_temp_dir().'/ssh-executor-test-'.bin2hex(random_bytes(8));
+        File::makeDirectory($directory, 0700);
+        $oldStorage = storage_path();
+        $oldPath = getenv('PATH');
+        $originalServer = $_SERVER;
+        $originalEnv = $_ENV;
+        $environment = [
+            'PATH' => $directory.':'.$oldPath,
+            'SSH_TEST_CAPTURE' => $directory.'/capture.json',
+            'SSH_TEST_EXIT' => '0',
+        ];
+        $originalEnvironment = [];
+        foreach ($environment as $name => $value) {
+            $originalEnvironment[$name] = getenv($name);
+            putenv($name.'='.$value);
+            $_SERVER[$name] = $_ENV[$name] = $value;
+        }
+        $this->app->useStoragePath($directory.'/storage');
+
+        try {
+            File::copy(base_path('tests/Fixtures/ssh-client.php'), $directory.'/ssh');
+            chmod($directory.'/ssh', 0700);
+            $assignment = $this->createAssignment(['executor_type' => 'ssh']);
+            $assignment->store->update([
+                'ssh_ip' => '192.0.2.10', 'ssh_user' => 'monitor', 'ssh_password' => ' test-password ',
+            ]);
+            $assignment->checkDefinition->update([
+                'configuration' => ['script' => "printf 'indices-ok'\r\n", 'timeout' => 10],
+                'assertions' => [['field' => 'exit_code', 'operator' => 'equals', 'expected' => 0]],
+            ]);
+            $this->assertNull($assignment->store->ssh_profile);
+            $this->assertNotSame(' test-password ', $assignment->store->getRawOriginal('ssh_password'));
+
+            // Load credentials from the database just as the worker does.
+            $execution = app(CheckExecutionService::class)->run($assignment->fresh());
+            $this->assertSame('completed', $execution->status, $execution->error_message ?? '');
+            $this->assertSame('success', $execution->outcome);
+            $this->assertSame(0, $execution->fresh()->result['observed']['exit_code']);
+            $this->assertSame("indices-ok\n", $execution->result['observed']['stdout']);
+            $this->assertSame("diagnostic-output\n", $execution->result['observed']['stderr']);
+            $this->assertTrue($execution->result['assertions'][0]['passed']);
+
+            $capture = json_decode(File::get($directory.'/capture.json'), true);
+            $this->assertTrue($capture['password_matches']);
+            $this->assertSame('force', $capture['askpass_required']);
+            $this->assertSame("printf 'indices-ok'\n\n", $capture['script']);
+            $arguments = $capture['arguments'];
+            $this->assertSame('monitor', $arguments[array_search('-l', $arguments) + 1]);
+            $this->assertSame('22', $arguments[array_search('-p', $arguments) + 1]);
+            $this->assertSame(['192.0.2.10', 'sh -s'], array_slice($arguments, -2));
+            $this->assertStringNotContainsString('test-password', implode(' ', $arguments));
+            $this->assertStringNotContainsString('test-password', json_encode($execution->result));
+            $this->assertDirectoryDoesNotExist(dirname($capture['askpass']));
+
+            putenv('SSH_TEST_EXIT=1');
+            $_SERVER['SSH_TEST_EXIT'] = $_ENV['SSH_TEST_EXIT'] = '1';
+            $failed = app(CheckExecutionService::class)->run($assignment->fresh());
+            $this->assertSame('completed', $failed->status);
+            $this->assertSame('failed', $failed->outcome);
+            $this->assertFalse($failed->result['assertions'][0]['passed']);
+        } finally {
+            $this->app->useStoragePath($oldStorage);
+            foreach ($originalEnvironment as $name => $value) {
+                putenv($value === false ? $name : $name.'='.$value);
+            }
+            $_SERVER = $originalServer;
+            $_ENV = $originalEnv;
+            File::deleteDirectory($directory);
+        }
     }
 
     public function test_it_rejects_unsupported_executor_before_creating_execution(): void

@@ -49,7 +49,7 @@ class CheckSchedulingService
                             'next_run_at' => now()->addMinutes($lockedAssignment->interval_minutes),
                         ]);
 
-                        RunCheckAssignmentJob::dispatch($lockedAssignment->id, $execution->id)->onConnection;
+                        RunCheckAssignmentJob::dispatch($lockedAssignment->id, $execution->id)->onConnection('database');
 
                     });
                 }

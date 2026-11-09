@@ -4,6 +4,7 @@ namespace App\Actions\Orders;
 
 use App\Jobs\UpdateOrderJob;
 use App\Models\Store;
+use Illuminate\Support\Facades\Bus;
 
 class BulkUpdateOrdersAction
 {
@@ -15,10 +16,11 @@ class BulkUpdateOrdersAction
         if (array_keys($attributes) !== [$field] || ! in_array($attributes[$field], $allowed, true)) {
             throw new \RuntimeException('Operação de pedido inválida.');
         }
-        foreach ($orderIds as $orderId) {
-            UpdateOrderJob::dispatch($store, (string) $orderId, $attributes);
-        }
+        $batch = Bus::batch(array_map(fn ($id) => new UpdateOrderJob($store, (string) $id, $attributes), $orderIds))
+            ->name('Edição de pedidos')->allowFailures()
+            ->withOption('store_id', $store->id)->withOption('resource', 'order')
+            ->withOption('user_id', auth()->id())->dispatch();
 
-        return ['dispatched' => count($orderIds)];
+        return ['dispatched' => count($orderIds), 'batch_id' => $batch->id];
     }
 }

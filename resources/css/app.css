@@ -521,6 +521,8 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible {ou
 .toolbar {display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0}
 .toolbar label {margin:0}.toolbar input,.toolbar select {width:auto;max-width:220px}
 .field-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+/* Grid updates must not move the page while the filter form is in use. */
+[data-resource-grid] { overflow-anchor: none; }
 .drawer-backdrop {position:fixed;inset:0;background:#0006;z-index:70}
 .drawer {position:fixed;right:0;top:0;bottom:0;width:min(780px,95vw);padding:24px;background:var(--surface);overflow:auto;z-index:71;box-shadow:-8px 0 35px #0003}
 .drawer header {display:flex;align-items:center;justify-content:space-between;position:sticky;top:-24px;background:var(--surface);padding:12px 0;z-index:1}

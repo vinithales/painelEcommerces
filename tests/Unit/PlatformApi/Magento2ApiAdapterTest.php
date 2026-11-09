@@ -63,6 +63,31 @@ class Magento2ApiAdapterTest extends TestCase
         $this->assertEqualsWithDelta(10.0, $product['stock_quantity'], 0.001);
     }
 
+    public function test_category_filter_is_combined_with_sku_on_the_server(): void
+    {
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([new Response(200, [], '{"items":[],"total_count":0}')]));
+        $stack->push(\GuzzleHttp\Middleware::history($history));
+        $adapter = new Magento2ApiAdapter('https://example.com', 'ck', 'cs', 'at', 'ats', client: new Client(['handler' => $stack]));
+        $adapter->listProducts(['category' => '12', 'sku' => 'ABC'], 2, 25);
+        parse_str($history[0]['request']->getUri()->getQuery(), $query);
+        $groups = $query['searchCriteria']['filterGroups'];
+        $this->assertSame(['field' => 'category_id', 'value' => '12', 'conditionType' => 'eq'], $groups[0]['filters'][0]);
+        $this->assertSame('sku', $groups[1]['filters'][0]['field']);
+        $this->assertSame('ABC', $groups[1]['filters'][0]['value']);
+    }
+
+    public function test_categories_include_subsequent_pages(): void
+    {
+        $adapter = $this->makeAdapter([
+            new Response(200, [], json_encode(['items' => [['id' => 12, 'name' => 'Camisetas']], 'total_count' => 101])),
+            new Response(200, [], json_encode(['items' => [['id' => 13, 'name' => 'Sapatos']], 'total_count' => 101])),
+        ]);
+        $this->assertSame([
+            ['id' => '12', 'name' => 'Camisetas'], ['id' => '13', 'name' => 'Sapatos'],
+        ], $adapter->productCategories());
+    }
+
     public function test_list_orders_normalizes_response(): void
     {
         $raw = [

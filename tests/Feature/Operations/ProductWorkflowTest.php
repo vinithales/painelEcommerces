@@ -11,6 +11,7 @@ use App\Models\ProductSnapshot;
 use App\Models\Store;
 use App\Models\User;
 use App\Services\PlatformApi\Adapters\WooCommerceApiAdapter;
+use App\Services\PlatformApi\Adapters\Magento2ApiAdapter;
 use App\Services\PlatformApi\PlatformApiAdapterFactory;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
@@ -83,6 +84,44 @@ class ProductWorkflowTest extends TestCase
         Queue::assertPushed(UpdateProductJob::class, 2);
     }
 
+    public function test_magento_boleto_attribute_supports_bulk_preview_queue_update_and_rollback(): void
+    {
+        Queue::fake();
+        $store = Store::create(['name' => 'Magento', 'store_url' => 'https://example.com', 'platform' => 'magento2']);
+        $product = fn ($value) => ['id' => 1, 'sku' => 'SKU-1', 'name' => 'Produto', 'status' => 1,
+            'custom_attributes' => [['attribute_code' => 'descontonoboleto', 'value' => $value]]];
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler(array_map(
+            fn ($value) => new Response(200, [], json_encode($product($value))),
+            [5, 5, '0', '0', '0', 5],
+        )));
+        $stack->push(Middleware::history($history));
+        $adapter = new Magento2ApiAdapter('https://example.com', 'ck', 'cs', 'at', 'ats', client: new Client(['handler' => $stack]));
+        $this->mock(PlatformApiAdapterFactory::class, fn ($mock) => $mock->shouldReceive('make')->andReturn($adapter));
+
+        $component = Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->test(StoreProducts::class, ['store' => $store])
+            ->call('openBulkApplyModal', ['SKU-1', 'SKU-2'])
+            ->assertSee('descontonoboleto')
+            ->set('bulkField', 'descontonoboleto')->set('bulkValue', '0');
+        $preview = app(BulkUpdateProductsAction::class)->execute($store, ['SKU-1'], ['descontonoboleto' => '0'], true);
+        $this->assertSame(['from' => '5', 'to' => '0'], $preview[0]['diff']['descontonoboleto']);
+        Queue::assertNothingPushed();
+        $component->call('applyBulk')->assertHasNoErrors()->assertSet('showBulkModal', false);
+        Queue::assertPushed(UpdateProductJob::class, 2);
+
+        app(UpdateProductAction::class)->execute($store, 'SKU-1', ['descontonoboleto' => '0']);
+        $payload = json_decode((string) $history[2]['request']->getBody(), true);
+        $this->assertSame(['product' => ['custom_attributes' => [['attribute_code' => 'descontonoboleto', 'value' => '0']]]], $payload);
+        $snapshot = ProductSnapshot::firstOrFail();
+        $this->assertSame(['descontonoboleto' => '5'], $snapshot->data_before);
+        $this->assertSame(['descontonoboleto' => '0'], $snapshot->data_after);
+        app(RollbackProductAction::class)->execute($snapshot);
+        $rollback = json_decode((string) $history[5]['request']->getBody(), true);
+        $this->assertSame('5', $rollback['product']['custom_attributes'][0]['value']);
+        $this->assertNotNull($snapshot->fresh()->reverted_at);
+    }
+
     public function test_unsupported_fields_are_rejected_before_http(): void
     {
         $this->expectException(ValidationException::class);
@@ -101,6 +140,33 @@ class ProductWorkflowTest extends TestCase
         $this->fake([$this->product()], $history);
         Livewire::actingAs(User::factory()->create(['role' => 'admin']))->test(StoreProducts::class, ['store' => $this->store()])
             ->set('filters.sku', 'SKU-1')->set('page', 2)->call('openDetail', '1')->assertSet('page', 2)->assertSet('filters.sku', 'SKU-1')->assertSee('Produto')->assertSee('Organização')->assertSee('Mídia');
+    }
+
+    public function test_category_options_and_filter_are_loaded_from_the_store(): void
+    {
+        $history = [];
+        $this->fake([[['id' => 12, 'name' => 'Camisetas']], [$this->product()]], $history);
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->test(StoreProducts::class, ['store' => $this->store()])
+            ->call('loadCategories')->assertSee('Camisetas')
+            ->set('filters.category', '12')->set('filters.sku', 'SKU-1')->set('page', 3)
+            ->call('applyFilters')->assertHasNoErrors()->assertSet('page', 1)
+            ->assertSet('filters.category', '12')->assertSet('filters.sku', 'SKU-1');
+        parse_str($history[1]['request']->getUri()->getQuery(), $query);
+        $this->assertSame('12', $query['category']);
+        $this->assertSame('SKU-1', $query['sku']);
+        $this->assertSame('1', $query['page']);
+    }
+
+    public function test_invalid_category_is_rejected_before_querying_products(): void
+    {
+        $history = [];
+        $this->fake([], $history);
+        Livewire::actingAs(User::factory()->create(['role' => 'admin']))
+            ->test(StoreProducts::class, ['store' => $this->store()])
+            ->set('filters.category', 'invalid')->call('applyFilters')
+            ->assertHasErrors('filters.category');
+        $this->assertCount(0, $history);
     }
 
     public function test_sale_product_preview_compares_regular_price(): void

@@ -11,11 +11,14 @@ interface PlatformApiAdapter
     /**
      * List products with optional filters.
      *
-     * Accepted filter keys: sku, sku_prefix, ids (array), status, date_from, date_to.
+     * Accepted filter keys: sku, sku_prefix, category, ids (array), status, date_from, date_to.
      *
      * @return array{data: array<int, array<string, mixed>>, raw: array<string, mixed>, total: int}
      */
     public function listProducts(array $filters, int $page, int $perPage): array;
+
+    /** @return array<int, array{id: string, name: string}> */
+    public function productCategories(): array;
 
     /**
      * Fetch a single product by its platform ID.

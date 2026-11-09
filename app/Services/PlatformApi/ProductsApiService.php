@@ -40,6 +40,11 @@ class ProductsApiService
         return ApiAudit::call($store, 'list', 'product', null, $filters, fn () => $this->factory->make($store)->listProducts($filters, max(1, $page), min(100, max(1, $perPage))));
     }
 
+    public function categories(Store $store): array
+    {
+        return $this->factory->make($store)->productCategories();
+    }
+
     public function get(Store $store, string $id): array
     {
         return ApiAudit::call($store, 'get', 'product', $id, [], fn () => $this->factory->make($store)->getProduct($id));

@@ -6,6 +6,7 @@ use App\Jobs\UpdateProductJob;
 use App\Models\Store;
 use App\Services\PlatformApi\ProductFields;
 use App\Services\PlatformApi\ProductsApiService;
+use Illuminate\Support\Facades\Bus;
 
 class BulkUpdateProductsAction
 {
@@ -24,10 +25,11 @@ class BulkUpdateProductsAction
             return $previews;
         }
 
-        foreach ($productIds as $productId) {
-            UpdateProductJob::dispatch($store, (string) $productId, $attributes);
-        }
+        $batch = Bus::batch(array_map(fn ($id) => new UpdateProductJob($store, (string) $id, $attributes), $productIds))
+            ->name('Edição de produtos')->allowFailures()
+            ->withOption('store_id', $store->id)->withOption('resource', 'product')
+            ->withOption('user_id', auth()->id())->dispatch();
 
-        return ['dispatched' => count($productIds)];
+        return ['dispatched' => count($productIds), 'batch_id' => $batch->id];
     }
 }

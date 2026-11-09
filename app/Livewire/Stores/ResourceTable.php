@@ -15,6 +15,7 @@ use App\Services\PlatformApi\ProductFields;
 use App\Services\PlatformApi\ProductsApiService;
 use App\Support\Redactor;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Bus;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -24,7 +25,7 @@ abstract class ResourceTable extends Component
     public Store $store;
 
     #[Url]
-    public array $filters = ['name' => '', 'sku' => '', 'sku_prefix' => '', 'status' => '', 'date_from' => '', 'date_to' => '', 'customer_email' => '', 'number' => '', 'sort' => '', 'direction' => 'asc'];
+    public array $filters = ['name' => '', 'sku' => '', 'sku_prefix' => '', 'category' => '', 'status' => '', 'date_from' => '', 'date_to' => '', 'customer_email' => '', 'number' => '', 'sort' => '', 'direction' => 'asc'];
 
     #[Url]
     public int $page = 1;
@@ -59,6 +60,12 @@ abstract class ResourceTable extends Component
 
     public bool $showBulkModal = false;
 
+    #[Locked]
+    public ?string $bulkBatchId = null;
+
+    #[Locked]
+    public array $bulkProgress = [];
+
     public array $bulkSelectedIds = [];
 
     public string $bulkField = 'status';
@@ -77,6 +84,58 @@ abstract class ResourceTable extends Component
     public function mount(Store $store): void
     {
         $this->store = $store;
+        $this->bulkBatchId = session($this->bulkSessionKey());
+        $this->pollBulkProgress(false);
+    }
+
+    private function bulkSessionKey(): string
+    {
+        return 'bulk-edit.'.auth()->id().'.'.$this->store->id.'.'.$this->resource();
+    }
+
+    public function pollBulkProgress(bool $refresh = true): void
+    {
+        if (! $this->bulkBatchId) {
+            return;
+        }
+        $batch = Bus::findBatch($this->bulkBatchId);
+        if (! $batch || ($batch->options['store_id'] ?? null) !== $this->store->id
+            || ($batch->options['resource'] ?? null) !== $this->resource()
+            || ($batch->options['user_id'] ?? null) !== auth()->id()) {
+            $this->bulkBatchId = null;
+            $this->bulkProgress = [];
+            session()->forget($this->bulkSessionKey());
+
+            return;
+        }
+        $wasActive = $this->bulkProgress['active'] ?? true;
+        // Failed jobs remain pending in Laravel's batch counters.
+        $succeeded = $batch->processedJobs();
+        $failed = count($batch->failedJobIds);
+        $processed = min($batch->totalJobs, $succeeded + $failed);
+        $active = ! $batch->cancelled() && $processed < $batch->totalJobs;
+        $this->bulkProgress = [
+            'total' => $batch->totalJobs, 'processed' => $processed,
+            'succeeded' => $succeeded, 'failed' => $failed, 'active' => $active,
+            'cancelled' => $batch->cancelled(),
+            'percent' => $batch->totalJobs ? (int) round($processed / $batch->totalJobs * 100) : 0,
+        ];
+        if (! $active && session($this->bulkSessionKey()) === $this->bulkBatchId) {
+            session()->forget($this->bulkSessionKey());
+        }
+        if ($refresh && $wasActive && ! $active) {
+            $this->refreshRows();
+        }
+    }
+
+    public function dismissBulkProgress(string $batchId): void
+    {
+        if ($this->bulkBatchId !== $batchId || ($this->bulkProgress['active'] ?? false)) {
+            return;
+        }
+
+        $this->bulkBatchId = null;
+        $this->bulkProgress = [];
     }
 
     public function boot(): void
@@ -87,7 +146,7 @@ abstract class ResourceTable extends Component
     public function loadRows(): array
     {
         $this->resetErrorBag();
-        $this->validate(['page' => 'integer|min:1|max:100000', 'perPage' => 'integer|in:25,50,100', 'filters' => 'array', 'filters.*' => 'nullable|string|max:255', 'filters.direction' => 'in:asc,desc', 'filters.sort' => 'nullable|in:id,name,price,created_at', 'filters.date_from' => 'nullable|date', 'filters.date_to' => 'nullable|date']);
+        $this->validate(['page' => 'integer|min:1|max:100000', 'perPage' => 'integer|in:25,50,100', 'filters' => 'array', 'filters.*' => 'nullable|string|max:255', 'filters.category' => ['nullable', 'regex:/^[1-9][0-9]*$/'], 'filters.direction' => 'in:asc,desc', 'filters.sort' => 'nullable|in:id,name,price,created_at', 'filters.date_from' => 'nullable|date', 'filters.date_to' => 'nullable|date']);
         try {
             $r = $this->service()->list($this->store, array_filter($this->filters, fn ($v) => $v !== ''), $this->page, $this->perPage);
             $this->total = $r['total'];
@@ -266,6 +325,13 @@ abstract class ResourceTable extends Component
     public function applyBulk(bool $preview = false): void
     {
         Gate::authorize('manage');
+        $this->pollBulkProgress(false);
+        if ($this->bulkProgress['active'] ?? false) {
+            $this->addError('bulk', 'Aguarde a edição em massa atual terminar antes de iniciar outra.');
+
+            return;
+        }
+        $this->resetErrorBag('bulk');
         $this->validate(['bulkSelectedIds' => 'required|array|max:100', 'bulkSelectedIds.*' => 'required|string|max:255', 'bulkField' => 'required|string', 'bulkValue' => 'nullable|string|max:100000']);
         $attributes = [$this->bulkField => $this->bulkValue];
         if ($this->templateId) {
@@ -282,10 +348,13 @@ abstract class ResourceTable extends Component
                 }
             } else {
                 abort_if($preview, 422);
-                app(BulkUpdateOrdersAction::class)->execute($this->store, $this->bulkSelectedIds, $attributes);
+                $r = app(BulkUpdateOrdersAction::class)->execute($this->store, $this->bulkSelectedIds, $attributes);
             }
             $this->showBulkModal = false;
-            session()->flash('status', 'Lote enfileirado. Consulte o histórico de API para acompanhar cada resultado.');
+            $this->bulkBatchId = $r['batch_id'];
+            $this->bulkProgress = [];
+            session()->put($this->bulkSessionKey(), $this->bulkBatchId);
+            $this->pollBulkProgress();
         } catch (\Throwable $e) {
             $this->addError('bulk', Redactor::clean($e->getMessage()));
         }

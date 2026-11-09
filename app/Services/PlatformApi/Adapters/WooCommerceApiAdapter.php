@@ -52,6 +52,7 @@ class WooCommerceApiAdapter implements PlatformApiAdapter
             'page' => $page,
             'per_page' => $perPage,
             'sku' => $filters['sku'] ?? null,
+            'category' => $filters['category'] ?? null,
             'status' => $filters['status'] ?? null,
             'after' => empty($filters['date_from']) ? null : $filters['date_from'].'T00:00:00',
             'before' => empty($filters['date_to']) ? null : $filters['date_to'].'T23:59:59',
@@ -76,6 +77,23 @@ class WooCommerceApiAdapter implements PlatformApiAdapter
             'raw' => $raw,
             'total' => $total,
         ];
+    }
+
+    public function productCategories(): array
+    {
+        $categories = [];
+        $page = 1;
+        do {
+            $response = $this->request('GET', 'products/categories', ['query' => [
+                'page' => $page, 'per_page' => 100, 'hide_empty' => 'false', 'orderby' => 'name', 'order' => 'asc',
+            ]]);
+            foreach ($response['body'] as $category) {
+                $categories[] = ['id' => (string) $category['id'], 'name' => $category['name']];
+            }
+            $pages = (int) ($response['headers']['X-WP-TotalPages'][0] ?? (count($response['body']) === 100 ? $page + 1 : $page));
+        } while (++$page <= $pages);
+
+        return $categories;
     }
 
     public function getProduct(string $id): array

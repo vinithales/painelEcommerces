@@ -12,12 +12,18 @@
 </div>
 @if($rollbackMessage)<div class="flash {{ $rollbackFailed ? 'flash--error' : '' }}" role="{{ $rollbackFailed ? 'alert' : 'status' }}">{{ $rollbackMessage }}</div>@endif
 @foreach($errors->all() as $error)<div class="error" role="alert">{{ $error }}</div>@endforeach
-<form wire:submit="applyFilters" class="panel">
+<form wire:submit="applyFilters" class="panel" data-resource-filters @if($resource==='product') wire:init="loadCategories" @endif>
 <div class="field-grid">
 @if($resource==='product')
 <label>Nome<input wire:model="filters.name" placeholder="Buscar produto"></label>
 <label>SKU exato<input wire:model="filters.sku"></label>
 <label>Prefixo de SKU<input wire:model="filters.sku_prefix"></label>
+<label>Categoria<select wire:model="filters.category" wire:loading.attr="disabled" wire:target="loadCategories">
+<option value="">Todas as categorias</option>
+@foreach($categories as $category)<option value="{{ $category['id'] }}">{{ $category['name'] }} (#{{ $category['id'] }})</option>@endforeach
+</select>
+@if($categoryError)<span role="status">{{ $categoryError }}</span><button type="button" class="btn btn-secondary" wire:click="loadCategories">Tentar novamente</button>@endif
+</label>
 @else
 <label>Número / ID<input wire:model="filters.number"></label><label>E-mail<input wire:model="filters.customer_email" type="email"></label>
 @endif
@@ -31,6 +37,7 @@
 <div class="toolbar"><button class="btn btn-secondary" wire:click="refreshRows" wire:loading.attr="disabled">Atualizar página</button>
 @can('manage')<button class="btn btn-secondary" data-bulk-select>Editar selecionados</button><a wire:navigate href="{{ route('stores.bulk-templates',$store) }}">Templates</a>@endcan
 <span wire:loading role="status">Consultando plataforma…</span></div>
+@include('livewire.stores.partials.bulk-progress')
 <div wire:ignore data-resource-grid="{{ $resource }}" style="height:560px"></div>
 <div class="toolbar"><button wire:click="movePage(-1)" class="btn btn-secondary" @disabled($page<=1)>Anterior</button><span>Página {{ $page }} · {{ $total }} registros</span><button wire:click="movePage(1)" class="btn btn-secondary" @disabled($page*$perPage >= $total)>Próxima</button></div>
 @if($resource==='product' && $snapshots->isNotEmpty())
@@ -131,10 +138,15 @@ $labels=['id'=>'ID','name'=>'Nome','sku'=>'SKU','type'=>'Tipo','status'=>'Status
 @if($showBulkModal)<div class="drawer-backdrop"></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="Edição em massa">
 <header><h2>Editar {{ count($bulkSelectedIds) }} registros</h2><button class="btn btn-secondary" wire:click="$set('showBulkModal',false)">Fechar</button></header>
 @error('bulk')<p class="error">{{ $message }}</p>@enderror
+<div wire:loading wire:target="applyBulk" role="status" class="cache-progress">
+    <span class="cache-progress__spinner" aria-hidden="true"></span> Processando solicitação. Aguarde…
+</div>
+<fieldset style="border:0;padding:0;margin:0;min-width:0" wire:loading.attr="disabled" wire:target="applyBulk">
 <label>Template<select wire:model="templateId"><option value="">Configuração manual</option>@foreach($templates as $template)<option value="{{ $template->id }}">{{ $template->name }}</option>@endforeach</select></label>
 <label>Campo<select wire:model="bulkField">@foreach($resource==='product'?array_keys($editableFields):[$store->isMagento2()?'operation':'status'] as $field)<option>{{ $field }}</option>@endforeach</select></label>
 <label>Novo valor<input wire:model="bulkValue"></label>
 <div class="toolbar">@if($resource==='product')<button class="btn btn-secondary" wire:click="applyBulk(true)">Pré-visualizar</button>@endif<button class="btn btn-primary" wire:click="applyBulk" wire:confirm="Confirmar edição em massa na loja?" wire:loading.attr="disabled">Enfileirar edição</button></div>
+</fieldset>
 @include('livewire.stores.partials.preview')
 </aside>@endif
 </div>

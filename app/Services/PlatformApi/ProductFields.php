@@ -13,6 +13,10 @@ class ProductFields
         if ($store->isWooCommerce() && isset($data['regular_price'])) {
             $data['price'] = $data['regular_price'];
         }
+        if ($store->isMagento2()) {
+            $value = $data['attributes']['descontonoboleto'] ?? null;
+            $data['descontonoboleto'] = $value === null ? null : (string) $value;
+        }
         if (array_key_exists('gallery', $data)) {
             $data['images'] = $data['gallery'];
         }
@@ -24,7 +28,7 @@ class ProductFields
     {
         $common = ['name' => 'string|min:1|max:255', 'price' => 'numeric|min:0', 'weight' => 'nullable|numeric|min:0', 'description' => 'nullable|string|max:100000', 'short_description' => 'nullable|string|max:20000', 'images' => 'array|min:1|max:100'];
 
-        return $common + ($store->isMagento2() ? ['status' => 'in:enabled,disabled'] : ['sku' => 'string|max:255', 'status' => 'in:publish,draft,pending,private', 'sale_price' => 'nullable|numeric|min:0', 'stock_quantity' => 'nullable|numeric', 'manage_stock' => 'boolean', 'stock_status' => 'in:instock,outofstock,onbackorder']);
+        return $common + ($store->isMagento2() ? ['status' => 'in:enabled,disabled', 'descontonoboleto' => 'nullable|string|max:255'] : ['sku' => 'string|max:255', 'status' => 'in:publish,draft,pending,private', 'sale_price' => 'nullable|numeric|min:0', 'stock_quantity' => 'nullable|numeric', 'manage_stock' => 'boolean', 'stock_status' => 'in:instock,outofstock,onbackorder']);
     }
 
     public static function validate(Store $store, array $changes): array
@@ -95,7 +99,7 @@ class ProductFields
         if (isset($changes['status'])) {
             $changes['status'] = $changes['status'] === 'enabled' ? 1 : 2;
         }
-        foreach (['description', 'short_description'] as $field) {
+        foreach (['description', 'short_description', 'descontonoboleto'] as $field) {
             if (array_key_exists($field, $changes)) {
                 $changes['custom_attributes'][] = ['attribute_code' => $field, 'value' => $changes[$field]];
                 unset($changes[$field]);

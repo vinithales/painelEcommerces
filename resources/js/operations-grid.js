@@ -28,7 +28,7 @@ function init() {
   try { await wire.call('openDetail',String(product?e.data.key:e.data.id)); }
   finally { opening=false;window.dispatchEvent(new CustomEvent('resource-opened')); }
  };
- const api=createGrid(el,{theme:theme(),columnDefs:columns,rowData:[],getRowId:p=>String(product?p.data.key:p.data.id),loading:true,rowHeight:54,defaultColDef:{resizable:true,sortable:false,width:130,cellRenderer:textCell},rowSelection:{mode:'multiRow',enableClickSelection:false},onRowClicked:open,overlayNoRowsTemplate:'<span>Nenhum resultado nesta página.</span>'});
+ const api=createGrid(el,{theme:theme(),columnDefs:columns,rowData:[],suppressScrollOnNewData:true,suppressFocusAfterRefresh:true,getRowId:p=>String(product?p.data.key:p.data.id),loading:true,rowHeight:54,defaultColDef:{resizable:true,sortable:false,width:130,cellRenderer:textCell},rowSelection:{mode:'multiRow',enableClickSelection:false},onRowClicked:open,overlayNoRowsTemplate:'<span>Nenhum resultado nesta página.</span>'});
  const updated=e=>{const row=e.detail.row;if(row&&api.getRowNode(String(product?row.key:row.id)))api.applyTransaction({update:[row]});};
  const rows=e=>{api.setGridOption('loading',false);api.setGridOption('rowData',e.detail.rows??[]);};
  const themed=()=>api.setGridOption('theme',theme());

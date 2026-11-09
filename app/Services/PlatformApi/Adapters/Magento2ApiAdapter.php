@@ -146,6 +146,25 @@ class Magento2ApiAdapter implements PlatformApiAdapter
         ];
     }
 
+    public function productCategories(): array
+    {
+        $categories = [];
+        $page = 1;
+        do {
+            $body = $this->request('GET', 'categories/list', ['query' => [
+                'searchCriteria[pageSize]' => 100,
+                'searchCriteria[currentPage]' => $page,
+                'searchCriteria[sortOrders][0][field]' => 'name',
+                'searchCriteria[sortOrders][0][direction]' => 'ASC',
+            ]])['body'];
+            foreach ($body['items'] ?? [] as $category) {
+                $categories[] = ['id' => (string) $category['id'], 'name' => $category['name']];
+            }
+        } while (! empty($body['items']) && $page++ * 100 < ($body['total_count'] ?? 0));
+
+        return $categories;
+    }
+
     public function getProduct(string $id): array
     {
         $id = rawurlencode($id);
@@ -326,6 +345,13 @@ class Magento2ApiAdapter implements PlatformApiAdapter
         }
 
         if ($context === 'products') {
+            if (! empty($filters['category'])) {
+                $query["searchCriteria[filterGroups][{$filterIndex}][filters][0][field]"] = 'category_id';
+                $query["searchCriteria[filterGroups][{$filterIndex}][filters][0][value]"] = $filters['category'];
+                $query["searchCriteria[filterGroups][{$filterIndex}][filters][0][conditionType]"] = 'eq';
+                $filterIndex++;
+            }
+
             if (! empty($filters['sku'])) {
                 $query["searchCriteria[filterGroups][{$filterIndex}][filters][0][field]"] = 'sku';
                 $query["searchCriteria[filterGroups][{$filterIndex}][filters][0][value]"] = $filters['sku'];

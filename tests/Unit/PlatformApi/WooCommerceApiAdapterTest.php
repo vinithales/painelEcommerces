@@ -79,7 +79,7 @@ class WooCommerceApiAdapterTest extends TestCase
             client: new Client(['handler' => $stack]),
         );
 
-        $adapter->listProducts(['sku' => 'SHIRT-001', 'status' => 'publish'], 2, 25);
+        $adapter->listProducts(['sku' => 'SHIRT-001', 'status' => 'publish', 'category' => '12'], 2, 25);
 
         $request = $historyContainer[0]['request'];
         parse_str($request->getUri()->getQuery(), $query);
@@ -88,6 +88,7 @@ class WooCommerceApiAdapterTest extends TestCase
         $this->assertSame('publish', $query['status']);
         $this->assertSame('2', $query['page']);
         $this->assertSame('25', $query['per_page']);
+        $this->assertSame('12', $query['category']);
     }
 
     public function test_update_product_sends_put_request(): void
